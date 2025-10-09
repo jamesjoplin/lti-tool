@@ -128,3 +128,21 @@ jobs:
 
       - name: Run npm audit
         run: npm audit --audit-level=high
+
+  ci:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [quality, test, integration, security]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.quality.result }}" == "success" &&
+                "${{ needs.test.result }}" == "success" &&
+                "${{ needs.integration.result }}" == "success" &&
+                "${{ needs.security.result }}" == "success" ]]; then
+            echo "All CI jobs passed"
+          else
+            echo "Some CI jobs failed"
+            exit 1
+          fi
