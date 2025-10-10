@@ -11,6 +11,7 @@ concurrency:
 jobs:
   release:
     name: Release
+    if: github.repository_owner == 'lti-tool'
     runs-on: ubuntu-latest
     permissions:
       contents: write
