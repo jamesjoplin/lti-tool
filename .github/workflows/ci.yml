@@ -105,11 +105,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # TODO - enable when public
-      # - name: Initialize CodeQL
-      #   uses: github/codeql-action/init@v3
-      #   with:
-      #     languages: typescript
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: typescript
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -123,9 +122,8 @@ jobs:
       - name: Build packages
         run: npm run build
 
-      # TODO - enable when public
-      # - name: Perform CodeQL Analysis
-      #   uses: github/codeql-action/analyze@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
 
       - name: Run npm audit
         run: npm audit --audit-level=high
