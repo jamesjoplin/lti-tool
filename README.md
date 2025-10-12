@@ -1,11 +1,15 @@
-# LTI Tool
-
-<p align="center">Modern LTI 1.3 toolkit, built for TypeScript.</p>
+<div align="center">
+  <img src="./media/logo.png" alt="LTI Tool" />
+</div>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@lti-tool/core"><img alt="npm" src="https://img.shields.io/npm/dm/%40lti-tool%2Fcore?style=flat-square" /></a>
   <a href="https://github.com/lti-tool/lti-tool/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/lti-tool/lti-tool/release.yml" /></a>
 </p>
+
+# LTI Tool
+
+<p align="center">Modern LTI 1.3 toolkit, built for TypeScript.</p>
 
 ## Why This Library?
 
