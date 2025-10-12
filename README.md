@@ -24,6 +24,24 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 - **Performance** - 6.5ms average execution time, scales to zero
 - **Cost-effective** - Under $0.001 per 1000 LTI launches
 
+## Roadmap to 1.0
+
+### Version 1.0 - Core LTI 1.3 Completion
+
+- [ ] **AGS Enhancement** - Complete Assignment and Grade Services implementation
+- [ ] **NRPS Implementation** - Names and Role Provisioning Services for member roster
+- [ ] **Dynamic Tool Registration** - Automated tool registration workflow
+- [ ] **Deep Linking Enhancement** - Complete content selection implementation
+
+> **Track Progress**: View our [public project board](https://github.com/orgs/lti-tool/projects/1) for real-time updates
+
+### Future Releases
+
+- **Examples Repository** - Comprehensive example implementations
+- **Documentation Site** - Auto-generated from JSDoc
+- **Storage Adapters** - PostgreSQL, MySQL
+- **Framework Support** - Express, Fastify, Astro, React, Angular
+
 ## Hono Quick Start
 
 Create a new Hono app
