@@ -1,4 +1,4 @@
-import { SignJWT, createRemoteJWKSet, decodeJwt, exportJWK, jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeJwt, exportJWK, jwtVerify, SignJWT } from 'jose';
 import type { Logger } from 'pino';
 
 import type { JWKS } from './interfaces/jwks.js';
@@ -14,7 +14,12 @@ import {
   SessionIdSchema,
   VerifyLaunchParamsSchema,
 } from './schemas/index.js';
-import { type LineItems, LineItemsSchema } from './schemas/lti13/ags/lineItem.schema.js';
+import {
+  type LineItem,
+  type LineItems,
+  LineItemSchema,
+  LineItemsSchema,
+} from './schemas/lti13/ags/lineItem.schema.js';
 import type { ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
 import { AGSService } from './services/ags.service.js';
 import { createSession } from './services/session.service.js';
@@ -288,6 +293,23 @@ export class LTITool {
     const response = await this.agsService.listLineItems(session);
     const data = await response.json();
     return LineItemsSchema.parse(data);
+  }
+
+  /**
+   * Retrieves a specific line item (gradebook column) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Line item data from the platform
+   * @throws {Error} When AGS is not available or request fails
+   */
+  async getLineItem(session: LTISession): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.getLineItem(session);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
   }
 
   // Client management

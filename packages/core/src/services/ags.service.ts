@@ -143,4 +143,58 @@ export class AGSService {
 
     return response;
   }
+
+  /**
+   * Retrieves a specific line item (gradebook column) from the platform using Assignment and Grade Services.
+   *
+   * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @returns Promise resolving to the HTTP response containing the line item data
+   * @throws {Error} When AGS line item service is not available for the session or request fails
+   *
+   * @example
+   * ```typescript
+   * const response = await agsService.getLineItem(session);
+   * const lineItem = await response.json();
+   * console.log('Line item details:', lineItem);
+   * ```
+   */
+  async getLineItem(session: LTISession): Promise<Response> {
+    if (!session.services?.ags?.lineitems) {
+      throw new Error('AGS list line items not available for this session');
+    }
+
+    // Get launch config to access token URL
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    const token = await this.tokenService.getBearerToken(
+      session.platform.clientId,
+      // Need to get token URL from platform storage
+      launchConfig.tokenUrl,
+      'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+    );
+
+    const response = await fetch(`${session.services.ags.lineitem}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.ims.lis.v2.lineitem+json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        'AGS list line items failed',
+      );
+      throw new Error(`AGS list line items failed: ${response.statusText}`);
+    }
+
+    return response;
+  }
 }
