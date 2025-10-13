@@ -15,6 +15,7 @@ import {
   VerifyLaunchParamsSchema,
 } from './schemas/index.js';
 import {
+  type CreateLineItem,
   type LineItem,
   type LineItems,
   LineItemSchema,
@@ -308,6 +309,41 @@ export class LTITool {
     }
 
     const response = await this.agsService.getLineItem(session);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Creates a new line item (gradebook column) on the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @param createLineItem - Line item data including label, scoreMaximum, and optional metadata
+   * @returns Created line item with platform-generated ID and validated data
+   * @throws {Error} When AGS is not available, input validation fails, or creation fails
+   *
+   * @example
+   * ```typescript
+   * const newLineItem = await ltiTool.createLineItem(session, {
+   *   label: 'Quiz 1',
+   *   scoreMaximum: 100,
+   *   tag: 'quiz',
+   *   resourceId: 'quiz-001'
+   * });
+   * console.log('Created line item:', newLineItem.id);
+   * ```
+   */
+  async createLineItem(
+    session: LTISession,
+    createLineItem: CreateLineItem,
+  ): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+    if (!createLineItem) {
+      throw new Error('createLineItem is required');
+    }
+
+    const response = await this.agsService.createLineItem(session, createLineItem);
     const data = await response.json();
     return LineItemSchema.parse(data);
   }

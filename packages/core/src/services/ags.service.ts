@@ -2,6 +2,7 @@ import type { BaseLogger } from 'pino';
 
 import type { LTISession } from '../interfaces/ltiSession.js';
 import type { LTIStorage } from '../interfaces/ltiStorage.js';
+import { type CreateLineItem } from '../schemas/lti13/ags/lineItem.schema.js';
 import type { ScoreSubmission } from '../schemas/lti13/ags/scoreSubmission.schema.js';
 import { getValidLaunchConfig } from '../utils/launchConfigValidation.js';
 
@@ -160,7 +161,7 @@ export class AGSService {
    */
   async getLineItem(session: LTISession): Promise<Response> {
     if (!session.services?.ags?.lineitem) {
-      throw new Error('AGS list line items not available for this session');
+      throw new Error('AGS line item not available for this session');
     }
 
     // Get launch config to access token URL
@@ -193,6 +194,70 @@ export class AGSService {
         'AGS list line items failed',
       );
       throw new Error(`AGS list line items failed: ${response.statusText}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Creates a new line item (gradebook column) on the platform using Assignment and Grade Services.
+   *
+   * @param session - Active LTI session containing AGS line items endpoint configuration
+   * @param createLineItem - Line item data including label, scoreMaximum, and optional metadata
+   * @returns Promise resolving to the HTTP response containing the created line item with generated ID
+   * @throws {Error} When AGS line item creation service is not available for the session or creation fails
+   *
+   * @example
+   * ```typescript
+   * const response = await agsService.createLineItem(session, {
+   *   label: 'Quiz 1',
+   *   scoreMaximum: 100,
+   *   tag: 'quiz',
+   *   resourceId: 'quiz-001'
+   * });
+   * const newLineItem = await response.json();
+   * console.log('Created line item:', newLineItem.id);
+   * ```
+   */
+  async createLineItem(
+    session: LTISession,
+    createLineItem: CreateLineItem,
+  ): Promise<Response> {
+    if (!session.services?.ags?.lineitems) {
+      throw new Error('AGS create line items not available for this session');
+    }
+
+    // Get launch config to access token URL
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    const token = await this.tokenService.getBearerToken(
+      session.platform.clientId,
+      // Need to get token URL from platform storage
+      launchConfig.tokenUrl,
+      'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+    );
+
+    const response = await fetch(`${session.services.ags.lineitems}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/vnd.ims.lis.v2.lineitem+json',
+      },
+      body: JSON.stringify(createLineItem),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        'AGS line item creation failed',
+      );
+      throw new Error(`AGS line item creation failed: ${response.statusText}`);
     }
 
     return response;
