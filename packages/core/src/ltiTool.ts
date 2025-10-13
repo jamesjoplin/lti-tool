@@ -14,6 +14,7 @@ import {
   SessionIdSchema,
   VerifyLaunchParamsSchema,
 } from './schemas/index.js';
+import { type LineItems, LineItemsSchema } from './schemas/lti13/ags/lineItem.schema.js';
 import type { ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
 import { AGSService } from './services/ags.service.js';
 import { createSession } from './services/session.service.js';
@@ -270,6 +271,23 @@ export class LTITool {
       throw new Error('score is required');
     }
     return await this.agsService.submitScore(session, score);
+  }
+
+  /**
+   * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Array of line items from the platform
+   * @throws {Error} When AGS is not available or request fails
+   */
+  async listLineItems(session: LTISession): Promise<LineItems> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.listLineItems(session);
+    const data = await response.json();
+    return LineItemsSchema.parse(data);
   }
 
   // Client management
