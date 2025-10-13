@@ -20,6 +20,7 @@ import {
   type LineItems,
   LineItemSchema,
   LineItemsSchema,
+  type UpdateLineItem,
 } from './schemas/lti13/ags/lineItem.schema.js';
 import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
 import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
@@ -370,6 +371,44 @@ export class LTITool {
     const response = await this.agsService.createLineItem(session, createLineItem);
     const data = await response.json();
     return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Updates an existing line item (gradebook column) on the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @param updateLineItem - Updated line item data including all required fields
+   * @returns Updated line item with validated data from the platform
+   * @throws {Error} When AGS is not available, input validation fails, or update fails
+   */
+  async updateLineItem(
+    session: LTISession,
+    updateLineItem: UpdateLineItem,
+  ): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+    if (!updateLineItem) {
+      throw new Error('lineItem is required');
+    }
+
+    const response = await this.agsService.updateLineItem(session, updateLineItem);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Deletes a line item (gradebook column) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @throws {Error} When AGS is not available or deletion fails
+   */
+  async deleteLineItem(session: LTISession): Promise<void> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    await this.agsService.deleteLineItem(session);
   }
 
   // Client management

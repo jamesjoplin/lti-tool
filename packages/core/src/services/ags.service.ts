@@ -2,7 +2,10 @@ import type { BaseLogger } from 'pino';
 
 import type { LTISession } from '../interfaces/ltiSession.js';
 import type { LTIStorage } from '../interfaces/ltiStorage.js';
-import { type CreateLineItem } from '../schemas/lti13/ags/lineItem.schema.js';
+import type {
+  CreateLineItem,
+  UpdateLineItem,
+} from '../schemas/lti13/ags/lineItem.schema.js';
 import type { ScoreSubmission } from '../schemas/lti13/ags/scoreSubmission.schema.js';
 import { getValidLaunchConfig } from '../utils/launchConfigValidation.js';
 
@@ -317,6 +320,100 @@ export class AGSService {
         'AGS line item creation failed',
       );
       throw new Error(`AGS line item creation failed: ${response.statusText}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Updates an existing line item (gradebook column) on the platform using Assignment and Grade Services.
+   *
+   * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @param updateLineItem - Updated line item data including all required fields
+   * @returns Promise resolving to the HTTP response containing the updated line item
+   * @throws {Error} When AGS line item service is not available for the session or update fails
+   */
+  async updateLineItem(
+    session: LTISession,
+    updateLineItem: UpdateLineItem,
+  ): Promise<Response> {
+    if (!session.services?.ags?.lineitem) {
+      throw new Error('AGS line item not available for this session');
+    }
+
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    const token = await this.tokenService.getBearerToken(
+      session.platform.clientId,
+      launchConfig.tokenUrl,
+      'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+    );
+
+    const response = await fetch(session.services.ags.lineitem, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/vnd.ims.lis.v2.lineitem+json',
+      },
+      body: JSON.stringify(updateLineItem),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        'AGS line item update failed',
+      );
+      throw new Error(`AGS line item update failed: ${response.statusText}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Deletes a line item (gradebook column) from the platform using Assignment and Grade Services.
+   *
+   * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @returns Promise resolving to the HTTP response (typically 204 No Content on success)
+   * @throws {Error} When AGS line item service is not available for the session or deletion fails
+   */
+  async deleteLineItem(session: LTISession): Promise<Response> {
+    if (!session.services?.ags?.lineitem) {
+      throw new Error('AGS line item not available for this session');
+    }
+
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    const token = await this.tokenService.getBearerToken(
+      session.platform.clientId,
+      launchConfig.tokenUrl,
+      'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+    );
+
+    const response = await fetch(session.services.ags.lineitem, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        'AGS line item deletion failed',
+      );
+      throw new Error(`AGS line item deletion failed: ${response.statusText}`);
     }
 
     return response;

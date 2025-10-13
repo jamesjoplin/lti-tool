@@ -43,6 +43,18 @@ export const CreateLineItemSchema = LineItemSchema.omit({
 });
 
 /**
+ * Schema for updating an existing LTI Assignment and Grade Services (AGS) Line Item.
+ * Omits 'id' and 'resourceLinkId' fields as they are immutable per LTI AGS specification.
+ * Tools MUST NOT change these values during updates.
+ *
+ * @see https://www.imsglobal.org/spec/lti-ags/v2p0/#line-item-service
+ */
+export const UpdateLineItemSchema = LineItemSchema.omit({
+  id: true,
+  resourceLinkId: true,
+});
+
+/**
  * Schema for an array of line items returned from the line items service.
  */
 export const LineItemsSchema = z.array(LineItemSchema);
@@ -65,3 +77,9 @@ export type LineItems = z.infer<typeof LineItemsSchema>;
  * Contains all LineItem fields except the platform-generated 'id'.
  */
 export type CreateLineItem = z.infer<typeof CreateLineItemSchema>;
+
+/**
+ * Type representing data for updating an existing line item for LTI AGS.
+ * Contains all LineItem fields except immutable 'id' and 'resourceLinkId'.
+ */
+export type UpdateLineItem = z.infer<typeof UpdateLineItemSchema>;
