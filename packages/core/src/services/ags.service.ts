@@ -72,15 +72,7 @@ export class AGSService {
       body: JSON.stringify(scorePayload),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS score submission failed',
-      );
-      throw new Error(`AGS score submission failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'score submission');
     return response;
   }
 
@@ -122,15 +114,7 @@ export class AGSService {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS get scores failed',
-      );
-      throw new Error(`AGS get scores failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'get scores');
     return response;
   }
 
@@ -166,15 +150,7 @@ export class AGSService {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS list line items failed',
-      );
-      throw new Error(`AGS list line items failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'list line items');
     return response;
   }
 
@@ -210,15 +186,7 @@ export class AGSService {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS list line items failed',
-      );
-      throw new Error(`AGS list line items failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'get line item');
     return response;
   }
 
@@ -264,15 +232,7 @@ export class AGSService {
       body: JSON.stringify(createLineItem),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS line item creation failed',
-      );
-      throw new Error(`AGS line item creation failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'create line item');
     return response;
   }
 
@@ -306,15 +266,7 @@ export class AGSService {
       body: JSON.stringify(updateLineItem),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS line item update failed',
-      );
-      throw new Error(`AGS line item update failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'update line item');
     return response;
   }
 
@@ -342,15 +294,7 @@ export class AGSService {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error(
-        { error, status: response.status, statusText: response.statusText },
-        'AGS line item deletion failed',
-      );
-      throw new Error(`AGS line item deletion failed: ${response.statusText}`);
-    }
-
+    await this.validateAGSResponse(response, 'delete line item');
     return response;
   }
 
@@ -367,5 +311,19 @@ export class AGSService {
       launchConfig.tokenUrl,
       scope,
     );
+  }
+
+  private async validateAGSResponse(
+    response: Response,
+    operation: string,
+  ): Promise<void> {
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        `AGS ${operation} failed`,
+      );
+      throw new Error(`AGS ${operation} failed: ${response.statusText} ${error}`);
+    }
   }
 }
