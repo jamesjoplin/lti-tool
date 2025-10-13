@@ -159,7 +159,7 @@ export class AGSService {
    * ```
    */
   async getLineItem(session: LTISession): Promise<Response> {
-    if (!session.services?.ags?.lineitems) {
+    if (!session.services?.ags?.lineitem) {
       throw new Error('AGS list line items not available for this session');
     }
 
