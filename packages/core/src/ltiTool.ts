@@ -21,7 +21,8 @@ import {
   LineItemSchema,
   LineItemsSchema,
 } from './schemas/lti13/ags/lineItem.schema.js';
-import type { ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
+import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
+import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
 import { AGSService } from './services/ags.service.js';
 import { createSession } from './services/session.service.js';
 import { TokenService } from './services/token.service.js';
@@ -266,17 +267,40 @@ export class LTITool {
    *
    * @param session - Active LTI session containing AGS service endpoints
    * @param score - Score submission data including grade value and user ID
-   * @returns Result of the score submission
    * @throws {Error} When AGS is not available or submission fails
    */
-  async submitScore(session: LTISession, score: ScoreSubmission): Promise<Response> {
+  async submitScore(session: LTISession, score: ScoreSubmission): Promise<void> {
     if (!session) {
       throw new Error('session is required');
     }
     if (!score) {
       throw new Error('score is required');
     }
-    return await this.agsService.submitScore(session, score);
+
+    await this.agsService.submitScore(session, score);
+  }
+
+  /**
+   * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Array of score submissions for the line item
+   * @throws {Error} When AGS is not available or request fails
+   *
+   * @example
+   * ```typescript
+   * const scores = await ltiTool.getScores(session);
+   * console.log('All scores:', scores.map(s => `${s.userId}: ${s.scoreGiven}`));
+   * ```
+   */
+  async getScores(session: LTISession): Promise<Results> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.getScores(session);
+    const data = await response.json();
+    return ResultsSchema.parse(data);
   }
 
   /**

@@ -92,6 +92,65 @@ export class AGSService {
   }
 
   /**
+   * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services.
+   *
+   * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @returns Promise resolving to the HTTP response containing scores data for the line item
+   * @throws {Error} When AGS line item service is not available for the session or request fails
+   *
+   * @example
+   * ```typescript
+   * const response = await agsService.getScores(session);
+   * const scores = await response.json();
+   * console.log('All scores for this line item:', scores);
+   * ```
+   */
+  async getScores(session: LTISession): Promise<Response> {
+    if (!session.services?.ags?.lineitem) {
+      throw new Error('AGS line item not available for this session');
+    }
+
+    // Get launch config to access token URL
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    const token = await this.tokenService.getBearerToken(
+      session.platform.clientId,
+      launchConfig.tokenUrl,
+      'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
+    );
+
+    // cleanse the results URL
+    // we cannot include a search / query param
+    const lineItemUrl = new URL(session.services.ags.lineitem);
+    lineItemUrl.search = '';
+    const resultsUrl = `${lineItemUrl.toString()}/results`;
+
+    const response = await fetch(resultsUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.ims.lis.v2.resultcontainer+json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      this.logger.error(
+        { error, status: response.status, statusText: response.statusText },
+        'AGS get scores failed',
+      );
+      throw new Error(`AGS get scores failed: ${response.statusText}`);
+    }
+
+    return response;
+  }
+
+  /**
    * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services.
    *
    * @param session - Active LTI session containing AGS line items endpoint configuration

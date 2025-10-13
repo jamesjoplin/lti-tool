@@ -47,6 +47,8 @@ export const ScoreSubmissionSchema = z.object({
     .default('FullyGraded'),
 });
 
+export const ScoreSubmissionsSchema = z.array(ScoreSubmissionSchema);
+
 /**
  * Type representing a validated score submission for LTI AGS.
  * Contains grade data and metadata to be sent to the platform.
