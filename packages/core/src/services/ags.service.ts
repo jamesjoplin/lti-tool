@@ -48,18 +48,8 @@ export class AGSService {
       throw new Error('AGS not available for this session');
     }
 
-    // Get launch config to access token URL
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      // Need to get token URL from platform storage
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/score',
     );
 
@@ -113,17 +103,8 @@ export class AGSService {
       throw new Error('AGS line item not available for this session');
     }
 
-    // Get launch config to access token URL
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
     );
 
@@ -172,18 +153,8 @@ export class AGSService {
       throw new Error('AGS list line items not available for this session');
     }
 
-    // Get launch config to access token URL
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      // Need to get token URL from platform storage
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
@@ -226,18 +197,8 @@ export class AGSService {
       throw new Error('AGS line item not available for this session');
     }
 
-    // Get launch config to access token URL
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      // Need to get token URL from platform storage
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
@@ -289,18 +250,8 @@ export class AGSService {
       throw new Error('AGS create line items not available for this session');
     }
 
-    // Get launch config to access token URL
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      // Need to get token URL from platform storage
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
@@ -341,16 +292,8 @@ export class AGSService {
       throw new Error('AGS line item not available for this session');
     }
 
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
@@ -387,16 +330,8 @@ export class AGSService {
       throw new Error('AGS line item not available for this session');
     }
 
-    const launchConfig = await getValidLaunchConfig(
-      this.storage,
-      session.platform.issuer,
-      session.platform.clientId,
-      session.platform.deploymentId,
-    );
-
-    const token = await this.tokenService.getBearerToken(
-      session.platform.clientId,
-      launchConfig.tokenUrl,
+    const token = await this.getAGSToken(
+      session,
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
@@ -417,5 +352,20 @@ export class AGSService {
     }
 
     return response;
+  }
+
+  private async getAGSToken(session: LTISession, scope: string): Promise<string> {
+    const launchConfig = await getValidLaunchConfig(
+      this.storage,
+      session.platform.issuer,
+      session.platform.clientId,
+      session.platform.deploymentId,
+    );
+
+    return this.tokenService.getBearerToken(
+      session.platform.clientId,
+      launchConfig.tokenUrl,
+      scope,
+    );
   }
 }
