@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const DeploymentSchema = z.object({
   id: z.uuid().describe('Internal stable UUID for this deployment configuration'),
