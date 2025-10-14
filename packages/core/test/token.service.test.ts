@@ -124,6 +124,7 @@ describe('TokenService', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
+        json: vi.fn().mockResolvedValue('Error details'),
       };
       mockFetch.mockResolvedValue(mockResponse);
 

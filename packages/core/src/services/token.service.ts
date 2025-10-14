@@ -70,7 +70,7 @@ export class TokenService {
     });
 
     if (!response.ok) {
-      const errorDetail = await response.text();
+      const errorDetail = await response.json();
       throw new Error(
         `Token request failed: ${response.status} ${response.statusText} ${errorDetail}`,
       );
