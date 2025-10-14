@@ -24,7 +24,12 @@ import {
 } from './schemas/lti13/ags/lineItem.schema.js';
 import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
 import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
+import {
+  type Member,
+  NRPSContextMembershipResponseSchema,
+} from './schemas/lti13/nrps/contextMembership.schema.js';
 import { AGSService } from './services/ags.service.js';
+import { NRPSService } from './services/nrps.service.js';
 import { createSession } from './services/session.service.js';
 import { TokenService } from './services/token.service.js';
 import { getValidLaunchConfig } from './utils/launchConfigValidation.js';
@@ -58,6 +63,7 @@ export class LTITool {
   private logger: Logger;
   private tokenService: TokenService;
   private agsService: AGSService;
+  private nrpsService: NRPSService;
 
   /**
    * Creates a new LTI Tool instance.
@@ -79,6 +85,11 @@ export class LTITool {
       this.config.security?.keyId ?? 'main',
     );
     this.agsService = new AGSService(this.tokenService, this.config.storage, this.logger);
+    this.nrpsService = new NRPSService(
+      this.tokenService,
+      this.config.storage,
+      this.logger,
+    );
   }
 
   /**
@@ -409,6 +420,46 @@ export class LTITool {
     }
 
     await this.agsService.deleteLineItem(session);
+  }
+
+  /**
+   * Retrieves course/context members using Names and Role Provisioning Services (NRPS).
+   *
+   * @param session - Active LTI session containing NRPS service endpoints
+   * @returns Array of members with clean camelCase properties
+   * @throws {Error} When NRPS is not available or request fails
+   *
+   * @example
+   * ```typescript
+   * const members = await ltiTool.getMembers(session);
+   * const instructors = members.filter(m =>
+   *   m.roles.some(role => role.includes('Instructor'))
+   * );
+   * ```
+   */
+  async getMembers(session: LTISession): Promise<Member[]> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.nrpsService.getMembers(session);
+    const data = await response.json();
+    console.log(data);
+    const validated = NRPSContextMembershipResponseSchema.parse(data);
+
+    // Transform to clean camelCase format
+    return validated.members.map((member) => ({
+      status: member.status,
+      name: member.name,
+      picture: member.picture,
+      givenName: member.given_name,
+      familyName: member.family_name,
+      middleName: member.middle_name,
+      email: member.email,
+      userId: member.user_id,
+      lisPersonSourcedId: member.lis_person_sourcedid,
+      roles: member.roles,
+    }));
   }
 
   // Client management
