@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const LTI13LaunchSchema = z.object({
   id_token: z.jwt(),

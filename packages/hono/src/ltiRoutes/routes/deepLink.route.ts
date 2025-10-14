@@ -1,35 +1,18 @@
-import { createRoute, type RouteHandler } from '@hono/zod-openapi';
-import { type LTITool } from '@lti-tool/core';
+import { type LTIConfig } from '@lti-tool/core';
+import { type Handler } from 'hono';
 
-import { LTIContentRequestSchema } from '../../schemas/ltiContentRequest.schema';
-
-/**
- * OpenAPI route definition for LTI deep linking endpoint.
- */
-export const deepLinkRoute = createRoute({
-  tags: ['lti'],
-  method: 'get',
-  path: '/deepLinking',
-  request: {
-    query: LTIContentRequestSchema,
-  },
-  responses: {
-    200: { description: 'LTI protected content' },
-    403: { description: 'Session not found' },
-  },
-});
+import { getLTITool } from '../../ltiTool';
 
 /**
  * Creates a route handler for LTI deep linking requests.
- * @param ltiTool - The LTI tool instance
+ * @param config - The LTI config
  * @returns Route handler for deep linking
  */
-export function deepLinkRouteHandler(
-  ltiTool: LTITool,
-): RouteHandler<typeof deepLinkRoute> {
+export function deepLinkRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
-    const { ltiSessionId } = c.req.valid('query');
+    const { ltiSessionId } = c.req.query();
 
+    const ltiTool = getLTITool(config);
     const session = await ltiTool.getSession(ltiSessionId);
     if (!session) {
       return c.text('no session found', 403);

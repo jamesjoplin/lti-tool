@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 import { BaseJwtClaimsSchema } from './claims/baseJwtClaims.schema.js';
 import { ContextSchema, ResourceLinkSchema } from './claims/contextClaims.schema.js';
