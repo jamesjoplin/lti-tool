@@ -1,25 +1,16 @@
-import { createRoute, type RouteHandler } from '@hono/zod-openapi';
-import { type LTITool } from '@lti-tool/core';
+import { type LTIConfig } from '@lti-tool/core';
+import { type Handler } from 'hono';
 
-/**
- * OpenAPI route definition for JWKS (JSON Web Key Set) endpoint.
- */
-export const jwksRoute = createRoute({
-  tags: ['jwks'],
-  method: 'get',
-  path: '/jwks',
-  responses: {
-    200: { description: 'LTI tool public keys in JWKS format' },
-  },
-});
+import { getLTITool } from '../../ltiTool';
 
 /**
  * Creates a route handler for JWKS requests.
- * @param ltiTool - The LTI tool instance
+ * @param config - The LTI config
  * @returns Route handler for JWKS endpoint
  */
-export function jwksRouteHandler(ltiTool: LTITool): RouteHandler<typeof jwksRoute> {
+export function jwksRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
+    const ltiTool = getLTITool(config);
     return c.json(await ltiTool.getJWKS());
   };
 }

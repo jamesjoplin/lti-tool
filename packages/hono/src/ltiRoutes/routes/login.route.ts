@@ -1,48 +1,37 @@
-import { createRoute, type RouteHandler } from '@hono/zod-openapi';
-import { LTI13LoginSchema, type LTITool } from '@lti-tool/core';
+import { LTI13LoginSchema, type LTIConfig } from '@lti-tool/core';
+import { type Handler } from 'hono';
 
-/**
- * OpenAPI route definition for LTI login endpoint.
- */
-export const loginRoute = createRoute({
-  tags: ['lti'],
-  method: 'post',
-  path: '/login',
-  request: {
-    body: {
-      content: {
-        'application/x-www-form-urlencoded': {
-          schema: LTI13LoginSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    302: {
-      description: 'Redirect to LMS',
-    },
-  },
-});
+import { getLTITool } from '../../ltiTool';
 
 /**
  * Creates a route handler for LTI login requests.
- * @param ltiTool - The LTI tool instance
- * @param basePath - Base path for LTI routes
+ * @param config - The LTI config
  * @returns Route handler for LTI login
  */
-export function loginRouteHandler(
-  ltiTool: LTITool,
-  basePath: string,
-): RouteHandler<typeof loginRoute> {
+export function loginRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
-    const params = c.req.valid('form');
+    const formData = await c.req.formData();
 
+    const params = LTI13LoginSchema.parse({
+      iss: formData.get('iss'),
+      login_hint: formData.get('login_hint'),
+      target_link_uri: formData.get('target_link_uri'),
+      client_id: formData.get('client_id'),
+      lti_deployment_id: formData.get('lti_deployment_id'),
+      lti_message_hint: formData.get('lti_message_hint') || undefined,
+    });
+
+    const ltiTool = getLTITool(config);
     const baseUrl = new URL(c.req.url).origin;
-    const launchUrl = new URL(`${basePath}/launch`, baseUrl);
+    const currentPath = new URL(c.req.url).pathname;
+    const launchPath = currentPath.replace(/\/login$/, '/launch');
+    const launchUrl = new URL(launchPath, baseUrl);
+
     const authRedirectUrl = await ltiTool.handleLogin({
       ...params,
       launchUrl,
     });
+
     return c.redirect(authRedirectUrl);
   };
 }
