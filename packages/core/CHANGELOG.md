@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.10.0
+
+### Minor Changes
+
+- 9cdc0c7: Add AGS implementation and refactor Hono integration to simple handler pattern
+
 ## 0.9.0
 
 ### Minor Changes
