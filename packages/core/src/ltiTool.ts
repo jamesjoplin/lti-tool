@@ -1,4 +1,4 @@
-import { SignJWT, createRemoteJWKSet, decodeJwt, exportJWK, jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeJwt, exportJWK, jwtVerify, SignJWT } from 'jose';
 import type { Logger } from 'pino';
 
 import type { JWKS } from './interfaces/jwks.js';
@@ -14,7 +14,16 @@ import {
   SessionIdSchema,
   VerifyLaunchParamsSchema,
 } from './schemas/index.js';
-import type { ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
+import {
+  type CreateLineItem,
+  type LineItem,
+  type LineItems,
+  LineItemSchema,
+  LineItemsSchema,
+  type UpdateLineItem,
+} from './schemas/lti13/ags/lineItem.schema.js';
+import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
+import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
 import { AGSService } from './services/ags.service.js';
 import { createSession } from './services/session.service.js';
 import { TokenService } from './services/token.service.js';
@@ -259,17 +268,147 @@ export class LTITool {
    *
    * @param session - Active LTI session containing AGS service endpoints
    * @param score - Score submission data including grade value and user ID
-   * @returns Result of the score submission
    * @throws {Error} When AGS is not available or submission fails
    */
-  async submitScore(session: LTISession, score: ScoreSubmission): Promise<Response> {
+  async submitScore(session: LTISession, score: ScoreSubmission): Promise<void> {
     if (!session) {
       throw new Error('session is required');
     }
     if (!score) {
       throw new Error('score is required');
     }
-    return await this.agsService.submitScore(session, score);
+
+    await this.agsService.submitScore(session, score);
+  }
+
+  /**
+   * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Array of score submissions for the line item
+   * @throws {Error} When AGS is not available or request fails
+   *
+   * @example
+   * ```typescript
+   * const scores = await ltiTool.getScores(session);
+   * console.log('All scores:', scores.map(s => `${s.userId}: ${s.scoreGiven}`));
+   * ```
+   */
+  async getScores(session: LTISession): Promise<Results> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.getScores(session);
+    const data = await response.json();
+    return ResultsSchema.parse(data);
+  }
+
+  /**
+   * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Array of line items from the platform
+   * @throws {Error} When AGS is not available or request fails
+   */
+  async listLineItems(session: LTISession): Promise<LineItems> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.listLineItems(session);
+    const data = await response.json();
+    return LineItemsSchema.parse(data);
+  }
+
+  /**
+   * Retrieves a specific line item (gradebook column) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @returns Line item data from the platform
+   * @throws {Error} When AGS is not available or request fails
+   */
+  async getLineItem(session: LTISession): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    const response = await this.agsService.getLineItem(session);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Creates a new line item (gradebook column) on the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @param createLineItem - Line item data including label, scoreMaximum, and optional metadata
+   * @returns Created line item with platform-generated ID and validated data
+   * @throws {Error} When AGS is not available, input validation fails, or creation fails
+   *
+   * @example
+   * ```typescript
+   * const newLineItem = await ltiTool.createLineItem(session, {
+   *   label: 'Quiz 1',
+   *   scoreMaximum: 100,
+   *   tag: 'quiz',
+   *   resourceId: 'quiz-001'
+   * });
+   * console.log('Created line item:', newLineItem.id);
+   * ```
+   */
+  async createLineItem(
+    session: LTISession,
+    createLineItem: CreateLineItem,
+  ): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+    if (!createLineItem) {
+      throw new Error('createLineItem is required');
+    }
+
+    const response = await this.agsService.createLineItem(session, createLineItem);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Updates an existing line item (gradebook column) on the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @param updateLineItem - Updated line item data including all required fields
+   * @returns Updated line item with validated data from the platform
+   * @throws {Error} When AGS is not available, input validation fails, or update fails
+   */
+  async updateLineItem(
+    session: LTISession,
+    updateLineItem: UpdateLineItem,
+  ): Promise<LineItem> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+    if (!updateLineItem) {
+      throw new Error('lineItem is required');
+    }
+
+    const response = await this.agsService.updateLineItem(session, updateLineItem);
+    const data = await response.json();
+    return LineItemSchema.parse(data);
+  }
+
+  /**
+   * Deletes a line item (gradebook column) from the platform using Assignment and Grade Services (AGS).
+   *
+   * @param session - Active LTI session containing AGS service endpoints
+   * @throws {Error} When AGS is not available or deletion fails
+   */
+  async deleteLineItem(session: LTISession): Promise<void> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+
+    await this.agsService.deleteLineItem(session);
   }
 
   // Client management
