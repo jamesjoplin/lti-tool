@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.11.0
+
+### Minor Changes
+
+- 7c87338: Add NRPS implementation for retrieving course membership and user roles
+
 ## 0.10.0
 
 ### Minor Changes
