@@ -1,38 +1,22 @@
-import { createRoute, type RouteHandler } from '@hono/zod-openapi';
-import { LTI13LaunchSchema, type LTITool } from '@lti-tool/core';
+import { LTI13LaunchSchema, type LTIConfig } from '@lti-tool/core';
+import { type Handler } from 'hono';
 
-/**
- * OpenAPI route definition for LTI launch endpoint.
- */
-export const launchRoute = createRoute({
-  tags: ['lti'],
-  method: 'post',
-  path: '/launch',
-  request: {
-    body: {
-      content: {
-        'application/x-www-form-urlencoded': {
-          schema: LTI13LaunchSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Return launch content',
-    },
-  },
-});
+import { getLTITool } from '../../ltiTool';
 
 /**
  * Creates a route handler for LTI launch requests.
- * @param ltiTool - The LTI tool instance
+ * @param config - The LTI config
  * @returns Route handler for LTI launch
  */
-export function launchRouteHandler(ltiTool: LTITool): RouteHandler<typeof launchRoute> {
+export function launchRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
-    const { id_token, state } = c.req.valid('form');
+    const formData = await c.req.formData();
+    const { id_token, state } = LTI13LaunchSchema.parse({
+      id_token: formData.get('id_token'),
+      state: formData.get('state'),
+    });
 
+    const ltiTool = getLTITool(config);
     const validated = await ltiTool.verifyLaunch(id_token, state);
     const session = await ltiTool.createSession(validated);
 
