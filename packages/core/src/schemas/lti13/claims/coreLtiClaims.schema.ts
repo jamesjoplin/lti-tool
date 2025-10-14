@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const CoreLtiClaimsSchema = z.object({
   'https://purl.imsglobal.org/spec/lti/claim/message_type': z.union([

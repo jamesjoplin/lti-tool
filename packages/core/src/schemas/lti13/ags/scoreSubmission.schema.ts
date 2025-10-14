@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * Schema for submitting grades via LTI Assignment and Grade Services (AGS).
