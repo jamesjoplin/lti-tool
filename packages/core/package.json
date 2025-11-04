@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "jose": "^6.1.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "peerDependencies": {
     "pino": "^9.11.0"
@@ -48,6 +48,6 @@
     }
   },
   "devDependencies": {
-    "pino": "^9.12.0"
+    "pino": "^10.1.0"
   }
 }
