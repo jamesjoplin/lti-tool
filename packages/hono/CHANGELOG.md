@@ -1,5 +1,13 @@
 # @lti-tool/hono
 
+## 0.10.1
+
+### Patch Changes
+
+- 359a3fe: Update dependencies
+- Updated dependencies [359a3fe]
+  - @lti-tool/core@0.11.1
+
 ## 0.10.0
 
 ### Minor Changes

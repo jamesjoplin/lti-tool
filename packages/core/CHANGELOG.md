@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.11.1
+
+### Patch Changes
+
+- 359a3fe: Update dependencies
+
 ## 0.11.0
 
 ### Minor Changes
