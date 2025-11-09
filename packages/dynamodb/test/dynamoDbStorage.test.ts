@@ -14,7 +14,7 @@ import { LAUNCH_CONFIG_CACHE, SESSION_CACHE } from '../src/cacheConfig';
 vi.mock('@aws-sdk/client-dynamodb');
 
 const mockSend = vi.fn();
-vi.mocked(DynamoDBClient).mockImplementation(() => {
+vi.mocked(DynamoDBClient).mockImplementation(function () {
   return {
     send: mockSend,
   } as unknown as DynamoDBClient;

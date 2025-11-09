@@ -43,12 +43,11 @@ describe('TokenService', () => {
       const mockSign = vi.fn().mockResolvedValue('mock.jwt.token');
       const mockSetProtectedHeader = vi.fn().mockReturnValue({ sign: mockSign });
 
-      mockSignJWT.mockImplementation(
-        () =>
-          ({
-            setProtectedHeader: mockSetProtectedHeader,
-          }) as any,
-      );
+      mockSignJWT.mockImplementation(function () {
+        return {
+          setProtectedHeader: mockSetProtectedHeader,
+        } as any;
+      });
 
       const clientId = 'test-client';
       const tokenUrl = 'https://platform.example.com/token';
