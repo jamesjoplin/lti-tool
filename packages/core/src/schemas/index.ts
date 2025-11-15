@@ -1,5 +1,22 @@
 export { SessionIdSchema } from './common.schema.js';
 export {
+  DynamicRegistrationFormSchema,
+  type DynamicRegistrationForm,
+} from './lti13/dynamicRegistration/ltiDynamicRegistration.schema.js';
+export {
+  LTIMessagesArraySchema,
+  type LTIMessage,
+} from './lti13/dynamicRegistration/ltiMessages.schema.js';
+export { type OpenIDConfiguration } from './lti13/dynamicRegistration/openIDConfiguration.schema.js';
+export {
+  RegistrationRequestSchema,
+  type RegistrationRequest,
+} from './lti13/dynamicRegistration/registrationRequest.schema.js';
+export {
+  RegistrationResponseSchema,
+  type RegistrationResponse,
+} from './lti13/dynamicRegistration/registrationResponse.schema.js';
+export {
   LTI13JwtPayloadSchema,
   type LTI13JwtPayload,
 } from './lti13/lti13JwtPayload.schema.js';

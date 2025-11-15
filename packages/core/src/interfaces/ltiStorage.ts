@@ -1,5 +1,6 @@
 import type { LTIClient } from './ltiClient.js';
 import type { LTIDeployment } from './ltiDeployment.js';
+import type { LTIDynamicRegistrationSession } from './ltiDynamicRegistrationSession.js';
 import type { LTILaunchConfig } from './ltiLaunchConfig.js';
 import type { LTISession } from './ltiSession.js';
 
@@ -158,4 +159,35 @@ export interface LTIStorage {
    * @param launchConfig - Complete launch configuration with auth URLs and keys
    */
   saveLaunchConfig(launchConfig: LTILaunchConfig): Promise<void>;
+
+  // Dynamic Registration
+
+  /**
+   * Stores a temporary registration session during LTI 1.3 dynamic registration flow.
+   * Sessions have a TTL and are automatically cleaned up when expired.
+   *
+   * @param sessionId - Unique session identifier (typically a UUID)
+   * @param session - Registration session data including platform config and tokens
+   */
+  setRegistrationSession(
+    sessionId: string,
+    session: LTIDynamicRegistrationSession,
+  ): Promise<void>;
+
+  /**
+   * Retrieves a registration session by its ID for validation during completion.
+   *
+   * @param sessionId - Unique session identifier
+   * @returns Registration session if found and not expired, undefined otherwise
+   */
+  getRegistrationSession(
+    sessionId: string,
+  ): Promise<LTIDynamicRegistrationSession | undefined>;
+
+  /**
+   * Removes a registration session from storage (cleanup after completion or expiration).
+   *
+   * @param sessionId - Unique session identifier to delete
+   */
+  deleteRegistrationSession(sessionId: string): Promise<void>;
 }

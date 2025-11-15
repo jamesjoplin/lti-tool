@@ -5,12 +5,15 @@ import type { JWKS } from './interfaces/jwks.js';
 import type { LTIClient } from './interfaces/ltiClient.js';
 import type { LTIConfig } from './interfaces/ltiConfig.js';
 import type { LTIDeployment } from './interfaces/ltiDeployment.js';
+import type { LTIDynamicRegistrationSession } from './interfaces/ltiDynamicRegistrationSession.js';
 import type { LTISession } from './interfaces/ltiSession.js';
 import { AddClientSchema, UpdateClientSchema } from './schemas/client.schema.js';
 import {
+  type DynamicRegistrationForm,
   HandleLoginParamsSchema,
   type LTI13JwtPayload,
   LTI13JwtPayloadSchema,
+  type RegistrationRequest,
   SessionIdSchema,
   VerifyLaunchParamsSchema,
 } from './schemas/index.js';
@@ -24,11 +27,13 @@ import {
 } from './schemas/lti13/ags/lineItem.schema.js';
 import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
 import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
+import { type OpenIDConfiguration } from './schemas/lti13/dynamicRegistration/openIDConfiguration.schema.js';
 import {
   type Member,
   NRPSContextMembershipResponseSchema,
 } from './schemas/lti13/nrps/contextMembership.schema.js';
 import { AGSService } from './services/ags.service.js';
+import { DynamicRegistrationService } from './services/dynamicRegistration.service.js';
 import { NRPSService } from './services/nrps.service.js';
 import { createSession } from './services/session.service.js';
 import { TokenService } from './services/token.service.js';
@@ -64,6 +69,7 @@ export class LTITool {
   private tokenService: TokenService;
   private agsService: AGSService;
   private nrpsService: NRPSService;
+  private dynamicRegistrationService?: DynamicRegistrationService;
 
   /**
    * Creates a new LTI Tool instance.
@@ -90,6 +96,13 @@ export class LTITool {
       this.config.storage,
       this.logger,
     );
+    if (this.config.dynamicRegistration) {
+      this.dynamicRegistrationService = new DynamicRegistrationService(
+        this.config.storage,
+        this.config.dynamicRegistration,
+        this.logger,
+      );
+    }
   }
 
   /**
@@ -444,7 +457,6 @@ export class LTITool {
 
     const response = await this.nrpsService.getMembers(session);
     const data = await response.json();
-    console.log(data);
     const validated = NRPSContextMembershipResponseSchema.parse(data);
 
     // Transform to clean camelCase format
@@ -460,6 +472,76 @@ export class LTITool {
       lisPersonSourcedId: member.lis_person_sourcedid,
       roles: member.roles,
     }));
+  }
+
+  /**
+   * Fetches and validates the OpenID Connect configuration from an LTI platform during dynamic registration.
+   * Validates that the OIDC endpoint and issuer have matching hostnames for security.
+   *
+   * @param registrationRequest - Registration request containing openid_configuration URL and optional registration_token
+   * @returns Validated OpenID configuration with platform endpoints and supported features
+   * @throws {Error} When the configuration fetch fails, validation fails, or hostname mismatch detected
+   *
+   * @example
+   * ```typescript
+   * const config = await ltiTool.fetchPlatformConfiguration({
+   *   openid_configuration: 'https://platform.edu/.well-known/openid_configuration',
+   *   registration_token: 'optional-bearer-token'
+   * });
+   * console.log('Platform issuer:', config.issuer);
+   * ```
+   */
+  async fetchPlatformConfiguration(
+    registrationRequest: RegistrationRequest,
+  ): Promise<OpenIDConfiguration> {
+    if (!this.dynamicRegistrationService) {
+      throw new Error('Dynamic registration service is not configured');
+    }
+    return await this.dynamicRegistrationService.fetchPlatformConfiguration(
+      registrationRequest,
+    );
+  }
+
+  /**
+   * Initiates LTI 1.3 dynamic registration by fetching platform configuration and generating registration form.
+   * Creates a temporary session and returns vendor-specific HTML form for service selection.
+   *
+   * @param registrationRequest - Registration request containing openid_configuration URL and optional registration_token
+   * @param requestPath - Current request path used to build form action URLs
+   * @returns HTML form for service selection and registration completion
+   * @throws {Error} When dynamic registration service is not configured or platform configuration fails
+   */
+  async initiateDynamicRegistration(
+    registrationRequest: RegistrationRequest,
+    requestPath: string,
+  ): Promise<string> {
+    if (!this.dynamicRegistrationService) {
+      throw new Error('Dynamic registration service is not configured');
+    }
+    return await this.dynamicRegistrationService.initiateDynamicRegistration(
+      registrationRequest,
+      requestPath,
+    );
+  }
+
+  /**
+   * Completes LTI 1.3 dynamic registration by processing form submission and storing client configuration.
+   * Validates session, registers with platform, stores client/deployment data, and returns success page.
+   *
+   * @param dynamicRegistrationForm - Validated form data containing selected services and session token
+   * @returns HTML success page with registration details and close button
+   * @throws {Error} When dynamic registration service is not configured or registration process fails
+   */
+  async completeDynamicRegistration(
+    dynamicRegistrationForm: DynamicRegistrationForm,
+  ): Promise<string> {
+    if (!this.dynamicRegistrationService) {
+      throw new Error('Dynmaic registration service is not configured');
+    }
+
+    return await this.dynamicRegistrationService.completeDynamicRegistration(
+      dynamicRegistrationForm,
+    );
   }
 
   // Client management
@@ -580,5 +662,44 @@ export class LTITool {
    */
   async deleteDeployment(clientId: string, deploymentId: string): Promise<void> {
     return await this.config.storage.deleteDeployment(clientId, deploymentId);
+  }
+
+  // Dynamic Registration Session Management
+
+  /**
+   * Stores a temporary registration session during LTI 1.3 dynamic registration flow.
+   * Sessions automatically expire after the configured TTL period.
+   *
+   * @param sessionId - Unique session identifier (typically a UUID)
+   * @param session - Registration session data including platform config and tokens
+   */
+  async setRegistrationSession(
+    sessionId: string,
+    session: LTIDynamicRegistrationSession,
+  ): Promise<void> {
+    return await this.config.storage.setRegistrationSession(sessionId, session);
+  }
+
+  /**
+   * Retrieves a registration session by its ID for validation during completion.
+   * Returns undefined if the session is not found or has expired.
+   *
+   * @param sessionId - Unique session identifier
+   * @returns Registration session if found and not expired, undefined otherwise
+   */
+  async getRegistrationSession(
+    sessionId: string,
+  ): Promise<LTIDynamicRegistrationSession | undefined> {
+    return await this.config.storage.getRegistrationSession(sessionId);
+  }
+
+  /**
+   * Removes a registration session from storage after completion or expiration.
+   * Used for cleanup to prevent session accumulation.
+   *
+   * @param sessionId - Unique session identifier to delete
+   */
+  async deleteRegistrationSession(sessionId: string): Promise<void> {
+    return await this.config.storage.deleteRegistrationSession(sessionId);
   }
 }

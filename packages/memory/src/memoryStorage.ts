@@ -1,6 +1,7 @@
 import type {
   LTIClient,
   LTIDeployment,
+  LTIDynamicRegistrationSession,
   LTILaunchConfig,
   LTISession,
   LTIStorage,
@@ -37,6 +38,7 @@ export class MemoryStorage implements LTIStorage {
 
   private sessions = new Map<string, LTISession>();
   private nonces = new Map<string, Date>(); // nonce -> expiration date
+  private registrationSessions = new Map<string, LTIDynamicRegistrationSession>();
   private logger: Logger;
 
   constructor(config?: MemoryStorageConfig) {
@@ -49,6 +51,7 @@ export class MemoryStorage implements LTIStorage {
         error: () => {},
       } as unknown as Logger);
   }
+
   // TODO - implement
   getDeploymentById(
     // oxlint-disable-next-line no-unused-vars
@@ -253,5 +256,40 @@ export class MemoryStorage implements LTIStorage {
     // Memory storage doesn't need to persist launch configs separately
     // since they're derived from client data
     this.logger.debug({ launchConfig }, 'launch config would be saved (no-op in memory)');
+  }
+
+  // oxlint-disable-next-line require-await
+  async setRegistrationSession(
+    sessionId: string,
+    session: LTIDynamicRegistrationSession,
+  ): Promise<void> {
+    this.registrationSessions.set(sessionId, session);
+    this.logger.debug({ sessionId, session }, 'registration session stored');
+  }
+
+  // oxlint-disable-next-line require-await
+  async getRegistrationSession(
+    sessionId: string,
+  ): Promise<LTIDynamicRegistrationSession | undefined> {
+    const session = this.registrationSessions.get(sessionId);
+
+    if (!session) {
+      this.logger.warn({ sessionId }, 'registration session not found');
+      return undefined;
+    }
+
+    // check expiration
+    if (session.expiresAt < Date.now()) {
+      this.logger.warn({ sessionId }, 'registration session expired');
+      this.registrationSessions.delete(sessionId);
+      return undefined;
+    }
+
+    return session;
+  }
+
+  // oxlint-disable-next-line require-await
+  async deleteRegistrationSession(sessionId: string): Promise<void> {
+    this.registrationSessions.delete(sessionId);
   }
 }
