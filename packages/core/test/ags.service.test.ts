@@ -56,6 +56,9 @@ const mockStorage: LTIStorage = {
   validateNonce: vi.fn(),
   getLaunchConfig: vi.fn(),
   saveLaunchConfig: vi.fn(),
+  setRegistrationSession: vi.fn(),
+  getRegistrationSession: vi.fn(),
+  deleteRegistrationSession: vi.fn(),
 };
 
 const mockSession: LTISession = {
