@@ -14,6 +14,7 @@ import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import type {
   LTIClient,
   LTIDeployment,
+  LTIDynamicRegistrationSession,
   LTILaunchConfig,
   LTISession,
   LTIStorage,
@@ -545,7 +546,8 @@ export class DynamoDbStorage implements LTIStorage {
       return cachedConfig;
     }
 
-    const result = await this.ddbClient.send(
+    // try exact match first
+    let result = await this.ddbClient.send(
       new GetItemCommand({
         TableName: this.launchConfigTable,
         Key: marshall({
@@ -556,6 +558,22 @@ export class DynamoDbStorage implements LTIStorage {
       }),
     );
     this.validateDynamoDbResult(result, 'get launch config');
+
+    // if not found, try the default deployment (from dynamic registration)
+    if (!result.Item && deploymentId !== 'default') {
+      this.logger.debug({ deploymentId }, 'trying default deployment fallback');
+      result = await this.ddbClient.send(
+        new GetItemCommand({
+          TableName: this.launchConfigTable,
+          Key: marshall({
+            pk: `${iss}#${clientId}`,
+            sk: 'default',
+          }),
+          ReturnConsumedCapacity: 'TOTAL',
+        }),
+      );
+      this.validateDynamoDbResult(result, 'get default launch config');
+    }
 
     if (!result.Item) {
       this.logger.warn({ iss, clientId, deploymentId }, 'launch config not found');
@@ -590,6 +608,81 @@ export class DynamoDbStorage implements LTIStorage {
     // Update cache
     const cacheKey = `${launchConfig.iss}#${launchConfig.clientId}#${launchConfig.deploymentId}`;
     LAUNCH_CONFIG_CACHE.set(cacheKey, launchConfig);
+  }
+
+  async setRegistrationSession(
+    sessionId: string,
+    session: LTIDynamicRegistrationSession,
+  ): Promise<void> {
+    this.logger.debug({ sessionId }, 'setting registration session');
+    const ttl = Math.floor(session.expiresAt / 1000); // DynamoDB TTL in seconds
+
+    const result = await this.ddbClient.send(
+      new PutItemCommand({
+        TableName: this.dataPlaneTable,
+        Item: marshall(
+          {
+            pk: `DYNREG#${sessionId}`,
+            sk: '#',
+            ...session,
+            ttl,
+          },
+          { removeUndefinedValues: true },
+        ),
+        ReturnConsumedCapacity: 'TOTAL',
+      }),
+    );
+    this.validateDynamoDbResult(result, 'set registration session');
+  }
+
+  async getRegistrationSession(
+    sessionId: string,
+  ): Promise<LTIDynamicRegistrationSession | undefined> {
+    this.logger.debug({ sessionId }, 'getting registration session');
+
+    const result = await this.ddbClient.send(
+      new GetItemCommand({
+        TableName: this.dataPlaneTable,
+        Key: marshall({
+          pk: `DYNREG#${sessionId}`,
+          sk: '#',
+        }),
+        ReturnConsumedCapacity: 'TOTAL',
+      }),
+    );
+    this.validateDynamoDbResult(result, 'get registration session');
+
+    if (!result.Item) {
+      this.logger.warn({ sessionId }, 'registration session not found');
+      return undefined;
+    }
+
+    const session = unmarshall(result.Item) as LTIDynamicRegistrationSession;
+
+    // Check if expired (additional safety check beyond DynamoDB TTL)
+    if (session.expiresAt < Date.now()) {
+      this.logger.warn({ sessionId }, 'registration session expired');
+      await this.deleteRegistrationSession(sessionId);
+      return undefined;
+    }
+
+    return session;
+  }
+
+  async deleteRegistrationSession(sessionId: string): Promise<void> {
+    this.logger.debug({ sessionId }, 'deleting registration session');
+
+    const result = await this.ddbClient.send(
+      new DeleteItemCommand({
+        TableName: this.dataPlaneTable,
+        Key: marshall({
+          pk: `DYNREG#${sessionId}`,
+          sk: '#',
+        }),
+        ReturnConsumedCapacity: 'TOTAL',
+      }),
+    );
+    this.validateDynamoDbResult(result, 'delete registration session');
   }
 
   private async deleteLaunchConfig(
