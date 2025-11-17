@@ -87,7 +87,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(result, 'scan clients');
+      this.logDynamoDbResult(result, 'scan clients');
 
       if (result.Items?.length) {
         for (const item of result.Items) {
@@ -118,7 +118,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get client');
+    this.logDynamoDbResult(result, 'get client');
 
     if (!result.Items?.length) {
       this.logger.warn({ clientId }, 'client not found');
@@ -158,7 +158,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'save client');
+    this.logDynamoDbResult(result, 'save client');
 
     return clientId;
   }
@@ -203,7 +203,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'update client');
+    this.logDynamoDbResult(result, 'update client');
 
     // TODO - we may wish to make these paths explicit someday
     // if (issuerChanged || lmsClientIdChanged)
@@ -236,7 +236,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'query client for deletion');
+    this.logDynamoDbResult(result, 'query client for deletion');
 
     if (!result.Items || result.Items.length === 0) {
       this.logger.warn({ clientId }, 'client not found for deletion');
@@ -255,7 +255,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(deleteResult, 'delete client');
+      this.logDynamoDbResult(deleteResult, 'delete client');
     }
 
     this.logger.debug({ clientId }, 'client and all deployments deleted');
@@ -276,7 +276,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'query deployments');
+    this.logDynamoDbResult(result, 'query deployments');
 
     if (!result.Items?.length) {
       this.logger.debug({ clientId }, 'no deployments found');
@@ -310,7 +310,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get deployment by id');
+    this.logDynamoDbResult(result, 'get deployment by id');
 
     if (!result.Item) {
       this.logger.warn({ clientId, deploymentId }, 'deployment not found');
@@ -343,7 +343,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'add deployment');
+    this.logDynamoDbResult(result, 'add deployment');
 
     // save launch config
     const launchConfig = await this.buildLtiLaunchConfig(clientId, deploymentInternalId);
@@ -390,7 +390,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'update deployment');
+    this.logDynamoDbResult(result, 'update deployment');
 
     // always sync launch configs
     const launchConfig = await this.buildLtiLaunchConfig(clientId, deploymentId);
@@ -423,7 +423,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'delete deployment');
+    this.logDynamoDbResult(result, 'delete deployment');
 
     this.logger.debug({ clientId, deploymentId }, 'deployment deleted');
   }
@@ -455,7 +455,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(result, 'validate nonce');
+      this.logDynamoDbResult(result, 'validate nonce');
       return true; // Success = nonce was valid
     } catch (error) {
       if (error instanceof ConditionalCheckFailedException) {
@@ -487,7 +487,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get session');
+    this.logDynamoDbResult(result, 'get session');
 
     if (!result.Item) {
       this.logger.warn({ sessionId }, 'session not found');
@@ -519,7 +519,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'add session');
+    this.logDynamoDbResult(result, 'add session');
 
     // Cache the session
     SESSION_CACHE.set(session.id, session);
@@ -557,7 +557,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get launch config');
+    this.logDynamoDbResult(result, 'get launch config');
 
     // if not found, try the default deployment (from dynamic registration)
     if (!result.Item && deploymentId !== 'default') {
@@ -572,7 +572,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(result, 'get default launch config');
+      this.logDynamoDbResult(result, 'get default launch config');
     }
 
     if (!result.Item) {
@@ -603,7 +603,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'save launch config');
+    this.logDynamoDbResult(result, 'save launch config');
 
     // Update cache
     const cacheKey = `${launchConfig.iss}#${launchConfig.clientId}#${launchConfig.deploymentId}`;
@@ -632,7 +632,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'set registration session');
+    this.logDynamoDbResult(result, 'set registration session');
   }
 
   async getRegistrationSession(
@@ -650,7 +650,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get registration session');
+    this.logDynamoDbResult(result, 'get registration session');
 
     if (!result.Item) {
       this.logger.warn({ sessionId }, 'registration session not found');
@@ -682,7 +682,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'delete registration session');
+    this.logDynamoDbResult(result, 'delete registration session');
   }
 
   private async deleteLaunchConfig(
@@ -700,7 +700,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'delete launch config');
+    this.logDynamoDbResult(result, 'delete launch config');
 
     // Clear from cache
     const cacheKey = `${issuer}#${clientId}#${deploymentId}`;
@@ -723,7 +723,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'query launch configs for deletion');
+    this.logDynamoDbResult(result, 'query launch configs for deletion');
 
     if (!result.Items || result.Items.length === 0) {
       this.logger.warn({ clientId }, 'launch configs not found for deletion');
@@ -743,7 +743,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(result, 'delete launch config');
+      this.logDynamoDbResult(result, 'delete launch config');
     }
   }
 
@@ -785,13 +785,9 @@ export class DynamoDbStorage implements LTIStorage {
   }
 
   /**
-   * Validates DynamoDB operation result and logs consumed capacity.
-   *
-   * @param result - DynamoDB command result
-   * @param operation - Operation name for error messages
-   * @throws {Error} When operation fails (non-200 status)
+   * Logs DynamoDB operation result and consumed capacity.
    */
-  private validateDynamoDbResult(
+  private logDynamoDbResult(
     result: GetItemCommandOutput | PutItemCommandOutput | DeleteItemCommandOutput,
     operation: string,
   ): void {
@@ -801,12 +797,6 @@ export class DynamoDbStorage implements LTIStorage {
         { consumedCapacity: result.ConsumedCapacity },
         'DynamoDB capacity consumed',
       );
-    }
-
-    if (result.$metadata.httpStatusCode !== 200) {
-      const errorMessage = `Unable to ${operation} from dynamodb ${JSON.stringify(result.$metadata)}`;
-      this.logger.error(errorMessage);
-      throw new Error(errorMessage);
     }
   }
 
