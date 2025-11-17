@@ -1,5 +1,11 @@
 # @lti-tool/hono
 
+## 0.12.0
+
+### Minor Changes
+
+- 46aff4d: Add comprehensive error handling to all LTI route handlers with proper HTTP status codes, structured error responses, and request context logging. Added zod dependency for type-safe error checking.
+
 ## 0.11.0
 
 ### Minor Changes
