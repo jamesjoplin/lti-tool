@@ -1,5 +1,16 @@
 # @lti-tool/dynamodb
 
+## 0.10.0
+
+### Minor Changes
+
+- 3426ca4: Implement dynamic registration
+
+### Patch Changes
+
+- Updated dependencies [3426ca4]
+  - @lti-tool/core@0.12.0
+
 ## 0.9.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.12.0
+
+### Minor Changes
+
+- 3426ca4: Implement dynamic registration
+
 ## 0.11.1
 
 ### Patch Changes
