@@ -10,17 +10,25 @@ import { getLTITool } from '../../ltiTool';
  */
 export function deepLinkRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
-    const { ltiSessionId } = c.req.query();
+    try {
+      const { ltiSessionId } = c.req.query();
+      if (!ltiSessionId) {
+        return c.json({ error: 'Session ID required' }, 400);
+      }
 
-    const ltiTool = getLTITool(config);
-    const session = await ltiTool.getSession(ltiSessionId);
-    if (!session) {
-      return c.text('no session found', 403);
+      const ltiTool = getLTITool(config);
+      const session = await ltiTool.getSession(ltiSessionId);
+      if (!session) {
+        return c.json({ error: 'Session not found' }, 404);
+      }
+      const { jwtPayload: _jwtPayload, ...sessionForDebug } = session;
+
+      return c.html(
+        `<h1>Hello ${sessionForDebug.user.name}!</h1><h2>This was a deep link launch!</h2><p>Your session id is ${ltiSessionId} and here's an LTI session payload: <pre>${JSON.stringify(sessionForDebug, null, 2)}</pre>`,
+      );
+    } catch (error) {
+      config.logger?.error({ error, path: c.req.path }, 'Deep link endpoint error');
+      return c.json({ error: 'Internal server error' }, 500);
     }
-    const { jwtPayload: _jwtPayload, ...sessionForDebug } = session;
-
-    return c.html(
-      `<h1>Hello ${sessionForDebug.user.name}!</h1><h2>This was a deep link launch!</h2><p>Your session id is ${ltiSessionId} and here's an LTI session payload: <pre>${JSON.stringify(sessionForDebug, null, 2)}</pre>`,
-    );
   };
 }
