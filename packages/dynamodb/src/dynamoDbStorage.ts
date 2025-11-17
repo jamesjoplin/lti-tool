@@ -572,7 +572,7 @@ export class DynamoDbStorage implements LTIStorage {
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
-      this.validateDynamoDbResult(result, 'get default launch config');
+      this.logDynamoDbResult(result, 'get default launch config');
     }
 
     if (!result.Item) {
@@ -632,7 +632,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'set registration session');
+    this.logDynamoDbResult(result, 'set registration session');
   }
 
   async getRegistrationSession(
@@ -650,7 +650,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'get registration session');
+    this.logDynamoDbResult(result, 'get registration session');
 
     if (!result.Item) {
       this.logger.warn({ sessionId }, 'registration session not found');
@@ -682,7 +682,7 @@ export class DynamoDbStorage implements LTIStorage {
         ReturnConsumedCapacity: 'TOTAL',
       }),
     );
-    this.validateDynamoDbResult(result, 'delete registration session');
+    this.logDynamoDbResult(result, 'delete registration session');
   }
 
   private async deleteLaunchConfig(
