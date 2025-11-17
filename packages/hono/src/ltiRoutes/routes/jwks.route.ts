@@ -10,7 +10,12 @@ import { getLTITool } from '../../ltiTool';
  */
 export function jwksRouteHandler(config: LTIConfig): Handler {
   return async (c) => {
-    const ltiTool = getLTITool(config);
-    return c.json(await ltiTool.getJWKS());
+    try {
+      const ltiTool = getLTITool(config);
+      return c.json(await ltiTool.getJWKS());
+    } catch (error) {
+      config.logger?.error({ error, path: c.req.path }, 'JWKS endpoint error');
+      return c.json({ error: 'Internal server error' }, 500);
+    }
   };
 }
