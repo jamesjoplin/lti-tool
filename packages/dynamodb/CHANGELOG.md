@@ -1,5 +1,11 @@
 # @lti-tool/dynamodb
 
+## 0.11.0
+
+### Minor Changes
+
+- cd6c989: Adjust dynamodb storage validator to log operations only.
+
 ## 0.10.0
 
 ### Minor Changes
