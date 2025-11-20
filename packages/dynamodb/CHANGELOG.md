@@ -1,5 +1,13 @@
 # @lti-tool/dynamodb
 
+## 0.11.1
+
+### Patch Changes
+
+- 157b99d: Update third party dependencies
+- Updated dependencies [157b99d]
+  - @lti-tool/core@0.12.1
+
 ## 0.11.0
 
 ### Minor Changes
