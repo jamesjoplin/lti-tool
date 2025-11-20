@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.12.1
+
+### Patch Changes
+
+- 157b99d: Update third party dependencies
+
 ## 0.12.0
 
 ### Minor Changes
