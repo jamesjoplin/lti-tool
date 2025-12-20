@@ -1,5 +1,14 @@
 export { SessionIdSchema } from './common.schema.js';
 export {
+  ContentItemSchema,
+  type DeepLinkingContentItem,
+  type DeepLinkingFile,
+  type DeepLinkingHtml,
+  type DeepLinkingImage,
+  type DeepLinkingLink,
+  type DeepLinkingLtiResourceLink,
+} from './lti13/deepLinking/contentItem.schema.js';
+export {
   DynamicRegistrationFormSchema,
   type DynamicRegistrationForm,
 } from './lti13/dynamicRegistration/ltiDynamicRegistration.schema.js';
