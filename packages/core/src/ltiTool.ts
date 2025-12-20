@@ -27,12 +27,14 @@ import {
 } from './schemas/lti13/ags/lineItem.schema.js';
 import { type Results, ResultsSchema } from './schemas/lti13/ags/result.schema.js';
 import { type ScoreSubmission } from './schemas/lti13/ags/scoreSubmission.schema.js';
+import { type DeepLinkingContentItem } from './schemas/lti13/deepLinking/contentItem.schema.js';
 import { type OpenIDConfiguration } from './schemas/lti13/dynamicRegistration/openIDConfiguration.schema.js';
 import {
   type Member,
   NRPSContextMembershipResponseSchema,
 } from './schemas/lti13/nrps/contextMembership.schema.js';
 import { AGSService } from './services/ags.service.js';
+import { DeepLinkingService } from './services/deepLinking.service.js';
 import { DynamicRegistrationService } from './services/dynamicRegistration.service.js';
 import { NRPSService } from './services/nrps.service.js';
 import { createSession } from './services/session.service.js';
@@ -69,6 +71,7 @@ export class LTITool {
   private tokenService: TokenService;
   private agsService: AGSService;
   private nrpsService: NRPSService;
+  private deepLinkingService: DeepLinkingService;
   private dynamicRegistrationService?: DynamicRegistrationService;
 
   /**
@@ -96,6 +99,7 @@ export class LTITool {
       this.config.storage,
       this.logger,
     );
+    this.deepLinkingService = new DeepLinkingService(this.config.keyPair, this.logger);
     if (this.config.dynamicRegistration) {
       this.dynamicRegistrationService = new DynamicRegistrationService(
         this.config.storage,
@@ -472,6 +476,41 @@ export class LTITool {
       lisPersonSourcedId: member.lis_person_sourcedid,
       roles: member.roles,
     }));
+  }
+
+  /**
+   * Creates a Deep Linking response with selected content items.
+   * Generates a signed JWT and returns HTML form that auto-submits to the platform.
+   *
+   * @param session - Active LTI session containing Deep Linking configuration
+   * @param contentItems - Array of content items selected by the user
+   * @returns HTML string containing auto-submit form
+   * @throws {Error} When Deep Linking is not available for the session
+   *
+   * @example
+   * ```typescript
+   * const html = await ltiTool.createDeepLinkingResponse(session, [
+   *   {
+   *     type: 'ltiResourceLink',
+   *     title: 'Quiz 1',
+   *     url: 'https://tool.example.com/quiz/1'
+   *   }
+   * ]);
+   * // Render the HTML to return content items to platform
+   * ```
+   */
+  async createDeepLinkingResponse(
+    session: LTISession,
+    contentItems: DeepLinkingContentItem[],
+  ): Promise<string> {
+    if (!session) {
+      throw new Error('session is required');
+    }
+    if (!contentItems) {
+      throw new Error('contentItems is required');
+    }
+
+    return await this.deepLinkingService.createResponse(session, contentItems);
   }
 
   /**
