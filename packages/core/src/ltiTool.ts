@@ -99,7 +99,11 @@ export class LTITool {
       this.config.storage,
       this.logger,
     );
-    this.deepLinkingService = new DeepLinkingService(this.config.keyPair, this.logger);
+    this.deepLinkingService = new DeepLinkingService(
+      this.config.keyPair,
+      this.logger,
+      this.config.security?.keyId ?? 'main',
+    );
     if (this.config.dynamicRegistration) {
       this.dynamicRegistrationService = new DynamicRegistrationService(
         this.config.storage,

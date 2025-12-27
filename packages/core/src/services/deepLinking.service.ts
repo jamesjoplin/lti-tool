@@ -8,12 +8,15 @@ import type { DeepLinkingContentItem } from '../schemas/lti13/deepLinking/conten
  * Deep Linking service for LTI 1.3.
  * Generates signed JWT responses containing selected content items to return to the platform.
  *
+ * @param keyPair - RSA key pair for signing client assertion JWTs (must be RS256 compatible)
+ * @param keyId - Key identifier for JWT header, should match JWKS key ID (defaults to 'main')
  * @see https://www.imsglobal.org/spec/lti-dl/v2p0
  */
 export class DeepLinkingService {
   constructor(
     private keyPair: CryptoKeyPair,
     private logger: BaseLogger,
+    private keyId = 'main',
   ) {}
 
   /**
@@ -85,7 +88,11 @@ export class DeepLinkingService {
     };
 
     return await new SignJWT(payload)
-      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+      .setProtectedHeader({
+        alg: 'RS256',
+        typ: 'JWT',
+        kid: this.keyId,
+      })
       .sign(this.keyPair.privateKey);
   }
 
