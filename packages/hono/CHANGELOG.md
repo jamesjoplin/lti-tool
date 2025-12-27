@@ -1,5 +1,13 @@
 # @lti-tool/hono
 
+## 0.12.1
+
+### Patch Changes
+
+- 48bd2b5: Update github actions to use npm trusted publishing.
+- Updated dependencies [48bd2b5]
+  - @lti-tool/core@0.12.2
+
 ## 0.12.0
 
 ### Minor Changes

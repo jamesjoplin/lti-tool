@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.12.2
+
+### Patch Changes
+
+- 48bd2b5: Update github actions to use npm trusted publishing.
+
 ## 0.12.1
 
 ### Patch Changes
