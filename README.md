@@ -61,7 +61,12 @@ Create a minimal Hono powered LTI tool
 ```typescript
 import { Hono } from 'hono';
 import { LTITool } from '@lti-tool/core';
-import { useLTI, secureLTISession } from '@lti-tool/hono';
+import {
+  jwksRouteHandler,
+  launchRouteHandler,
+  loginRouteHandler,
+  secureLTISession,
+} from '@lti-tool/hono';
 import { MemoryStorage } from '@lti-tool/memory';
 
 // Generate keypair (use proper key management in production)
@@ -76,11 +81,13 @@ const keyPair = await crypto.subtle.generateKey(
   ['sign', 'verify'],
 );
 
-const ltiTool = new LTITool({
+const ltiConfig = {
   stateSecret: new TextEncoder().encode('your-secret-key'),
   keyPair,
   storage: new MemoryStorage(),
-});
+};
+
+const ltiTool = new LTITool(ltiConfig);
 
 // Add your LMS configuration
 const clientId = await ltiTool.addClient({
@@ -98,8 +105,14 @@ await ltiTool.addDeployment(clientId, {
 });
 
 const app = new Hono();
-app.route('/lti', useLTI(ltiTool.config));
-app.use('/protected/*', secureLTISession(ltiTool.config));
+
+// Add LTI routes
+app.get('/lti/jwks', jwksRouteHandler(ltiConfig));
+app.post('/lti/launch', launchRouteHandler(ltiConfig));
+app.post('/lti/login', loginRouteHandler(ltiConfig));
+
+// Protect routes with LTI session
+app.use('/protected/*', secureLTISession(ltiConfig));
 
 app.get('/protected/content', (c) => {
   const session = c.get('ltiSession');
