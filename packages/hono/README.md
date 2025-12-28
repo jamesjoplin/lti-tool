@@ -25,7 +25,12 @@ Create a minimal Hono powered LTI tool
 ```typescript
 import { Hono } from 'hono';
 import { LTITool } from '@lti-tool/core';
-import { useLTI, secureLTISession } from '@lti-tool/hono';
+import {
+  jwksRouteHandler,
+  launchRouteHandler,
+  loginRouteHandler,
+  secureLTISession,
+} from '@lti-tool/hono';
 import { MemoryStorage } from '@lti-tool/memory';
 
 // Generate keypair (use proper key management in production)
@@ -40,19 +45,23 @@ const keyPair = await crypto.subtle.generateKey(
   ['sign', 'verify'],
 );
 
-const ltiTool = new LTITool({
+const ltiConfig = {
   stateSecret: new TextEncoder().encode('your-secret'),
   keyPair,
   storage: new MemoryStorage(),
-});
+};
+
+const ltiTool = new LTITool(ltiConfig);
 
 const app = new Hono();
 
-// Add LTI routes (/login, /launch, /jwks)
-app.route('/lti', useLTI(ltiTool.config));
+// Add LTI routes
+app.get('/lti/jwks', jwksRouteHandler(ltiConfig));
+app.post('/lti/launch', launchRouteHandler(ltiConfig));
+app.post('/lti/login', loginRouteHandler(ltiConfig));
 
 // Protect routes with LTI session
-app.use('/protected/*', secureLTISession(ltiTool.config));
+app.use('/protected/*', secureLTISession(ltiConfig));
 
 app.get('/protected/content', (c) => {
   const session = c.get('ltiSession');
@@ -70,20 +79,38 @@ app.get('/protected/content', (c) => {
 
 ## API Reference
 
-### useLTI(config)
+### Route Handlers
 
-Creates LTI route handlers for a Hono app.
+Individual route handlers for LTI endpoints. Each handler takes your LTI configuration.
 
-**Routes Created:**
+#### loginRouteHandler(config)
 
-- `POST /login` - LTI login initiation
-- `POST /launch` - LTI launch verification
-- `GET /jwks` - Public key set
+Handles LTI login initiation (OIDC third-party initiated login).
 
 ```typescript
-import { useLTI } from '@lti-tool/hono';
+import { loginRouteHandler } from '@lti-tool/hono';
 
-app.route('/lti', useLTI(ltiTool.config));
+app.post('/lti/login', loginRouteHandler(ltiConfig));
+```
+
+#### launchRouteHandler(config)
+
+Handles LTI launch verification and session creation.
+
+```typescript
+import { launchRouteHandler } from '@lti-tool/hono';
+
+app.post('/lti/launch', launchRouteHandler(ltiConfig));
+```
+
+#### jwksRouteHandler(config)
+
+Serves the JSON Web Key Set (JWKS) for platform verification.
+
+```typescript
+import { jwksRouteHandler } from '@lti-tool/hono';
+
+app.get('/lti/jwks', jwksRouteHandler(ltiConfig));
 ```
 
 ### secureLTISession(config)
