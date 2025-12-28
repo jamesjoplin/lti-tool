@@ -1,5 +1,11 @@
 # @lti-tool/hono
 
+## 0.12.2
+
+### Patch Changes
+
+- bc01f95: Update hono usage documentation
+
 ## 0.12.1
 
 ### Patch Changes
