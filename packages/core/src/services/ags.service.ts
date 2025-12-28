@@ -18,6 +18,13 @@ import type { TokenService } from './token.service.js';
  * @see https://www.imsglobal.org/spec/lti-ags/v2p0
  */
 export class AGSService {
+  /**
+   * Creates a new AGSService instance.
+   *
+   * @param tokenService - Token service for obtaining OAuth2 bearer tokens
+   * @param storage - Storage adapter for retrieving launch configurations
+   * @param logger - Logger instance for debug and error logging
+   */
   constructor(
     private tokenService: TokenService,
     private storage: LTIStorage,
@@ -243,6 +250,16 @@ export class AGSService {
    * @param updateLineItem - Updated line item data including all required fields
    * @returns Promise resolving to the HTTP response containing the updated line item
    * @throws {Error} When AGS line item service is not available for the session or update fails
+   *
+   * @example
+   * ```typescript
+   * const response = await agsService.updateLineItem(session, {
+   *   label: 'Quiz 1 (Updated)',
+   *   scoreMaximum: 100,
+   *   tag: 'quiz'
+   * });
+   * const updatedLineItem = await response.json();
+   * ```
    */
   async updateLineItem(
     session: LTISession,
@@ -276,6 +293,12 @@ export class AGSService {
    * @param session - Active LTI session containing AGS line item endpoint configuration
    * @returns Promise resolving to the HTTP response (typically 204 No Content on success)
    * @throws {Error} When AGS line item service is not available for the session or deletion fails
+   *
+   * @example
+   * ```typescript
+   * const response = await agsService.deleteLineItem(session);
+   * console.log('Line item deleted successfully');
+   * ```
    */
   async deleteLineItem(session: LTISession): Promise<Response> {
     if (!session.services?.ags?.lineitem) {

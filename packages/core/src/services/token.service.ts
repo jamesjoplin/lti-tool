@@ -6,6 +6,8 @@ import { SignJWT } from 'jose';
  *
  * Implements RFC 7523 (JWT Profile for OAuth 2.0 Client Authentication and Authorization Grants)
  * as required by LTI 1.3 security framework.
+ *
+ * @see https://www.rfc-editor.org/rfc/rfc7523
  */
 export class TokenService {
   /**
@@ -24,7 +26,7 @@ export class TokenService {
    *
    * @param clientId - OAuth2 client identifier
    * @param tokenUrl - Platform's token endpoint URL
-   * @returns Signed JWT client assertion
+   * @returns Promise resolving to a signed JWT client assertion string
    */
   async createClientAssertion(clientId: string, tokenUrl: string): Promise<string> {
     return await new SignJWT({
@@ -49,7 +51,8 @@ export class TokenService {
    * @param clientId - OAuth2 client identifier
    * @param tokenUrl - Platform's token endpoint URL
    * @param scope - Requested OAuth2 scope (e.g., AGS score scope)
-   * @returns Bearer access token for API calls
+   * @returns Promise resolving to a bearer access token string for API calls
+   * @throws {Error} When the token request fails or response is missing access_token
    */
   async getBearerToken(
     clientId: string,

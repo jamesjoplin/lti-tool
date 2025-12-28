@@ -8,11 +8,16 @@ import type { DeepLinkingContentItem } from '../schemas/lti13/deepLinking/conten
  * Deep Linking service for LTI 1.3.
  * Generates signed JWT responses containing selected content items to return to the platform.
  *
- * @param keyPair - RSA key pair for signing client assertion JWTs (must be RS256 compatible)
- * @param keyId - Key identifier for JWT header, should match JWKS key ID (defaults to 'main')
  * @see https://www.imsglobal.org/spec/lti-dl/v2p0
  */
 export class DeepLinkingService {
+  /**
+   * Creates a new DeepLinkingService instance.
+   *
+   * @param keyPair - RSA key pair for signing client assertion JWTs (must be RS256 compatible)
+   * @param logger - Logger instance for debug and error logging
+   * @param keyId - Key identifier for JWT header, should match JWKS key ID (defaults to 'main')
+   */
   constructor(
     private keyPair: CryptoKeyPair,
     private logger: BaseLogger,
@@ -25,7 +30,7 @@ export class DeepLinkingService {
    *
    * @param session - Active LTI session containing Deep Linking configuration
    * @param contentItems - Array of content items selected by the user
-   * @returns HTML string containing auto-submit form
+   * @returns Promise resolving to an HTML string containing auto-submit form
    * @throws {Error} When Deep Linking is not available for the session
    *
    * @example
@@ -65,7 +70,7 @@ export class DeepLinkingService {
    *
    * @param session - Active LTI session with Deep Linking configuration
    * @param contentItems - Array of selected content items
-   * @returns Signed JWT string
+   * @returns Promise resolving to a signed JWT string
    */
   private async createDeepLinkingJWT(
     session: LTISession,
