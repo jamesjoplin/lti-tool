@@ -31,9 +31,14 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
 
   const services: Record<string, unknown> = {};
   if (agsEndpoint) {
+    let lineItemUrl: string | undefined;
+    if (agsEndpoint.lineitem) {
+      const url = new URL(agsEndpoint.lineitem);
+      lineItemUrl = `${url.origin}${url.pathname}`; // quirk: moodle adds a url search param
+    }
     services.ags = {
-      lineitem: agsEndpoint.lineitem,
-      lineitems: agsEndpoint.lineitems,
+      lineitem: lineItemUrl,
+      lineitems: agsEndpoint.lineitems, // quirk: keep the moodle url search param
       scopes: agsEndpoint.scope || [],
     };
   }
