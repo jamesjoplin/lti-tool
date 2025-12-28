@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.13.2
+
+### Patch Changes
+
+- 865a510: Improve error messaging for LTITool
+
 ## 0.13.1
 
 ### Patch Changes
