@@ -579,7 +579,7 @@ export class LTITool {
     dynamicRegistrationForm: DynamicRegistrationForm,
   ): Promise<string> {
     if (!this.dynamicRegistrationService) {
-      throw new Error('Dynmaic registration service is not configured');
+      throw new Error('Dynamic registration service is not configured');
     }
 
     return await this.dynamicRegistrationService.completeDynamicRegistration(

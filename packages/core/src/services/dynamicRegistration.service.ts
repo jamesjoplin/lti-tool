@@ -63,6 +63,13 @@ import {
  * @see https://www.imsglobal.org/spec/lti-dr/v1p0 LTI 1.3 Dynamic Registration specification
  */
 export class DynamicRegistrationService {
+  /**
+   * Creates a new DynamicRegistrationService instance.
+   *
+   * @param storage - Storage adapter for persisting client and deployment configurations
+   * @param dynamicRegistrationConfig - Tool configuration including URLs and service settings
+   * @param logger - Logger instance for debug and error logging
+   */
   constructor(
     private storage: LTIStorage,
     private dynamicRegistrationConfig: DynamicRegistrationConfig,

@@ -13,6 +13,13 @@ import type { TokenService } from './token.service.js';
  * @see https://www.imsglobal.org/spec/lti-nrps/v2p0
  */
 export class NRPSService {
+  /**
+   * Creates a new NRPSService instance.
+   *
+   * @param tokenService - Token service for obtaining OAuth2 bearer tokens
+   * @param storage - Storage adapter for retrieving launch configurations
+   * @param logger - Logger instance for debug and error logging
+   */
   constructor(
     private tokenService: TokenService,
     private storage: LTIStorage,
@@ -24,8 +31,15 @@ export class NRPSService {
    * Returns raw response that should be parsed by the calling service.
    *
    * @param session - Active LTI session containing NRPS service endpoints
-   * @returns Raw HTTP response containing membership data
+   * @returns Promise resolving to the HTTP response containing membership data
    * @throws {Error} When NRPS is not available for this session or request fails
+   *
+   * @example
+   * ```typescript
+   * const response = await nrpsService.getMembers(session);
+   * const data = await response.json();
+   * console.log('Course members:', data.members);
+   * ```
    */
   async getMembers(session: LTISession): Promise<Response> {
     if (!session.services?.nrps?.membershipUrl) {
