@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.14.0
+
+### Minor Changes
+
+- e9141eb: Support additional canvas deep linking placements
+
 ## 0.13.2
 
 ### Patch Changes
