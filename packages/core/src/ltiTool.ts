@@ -39,6 +39,7 @@ import { DynamicRegistrationService } from './services/dynamicRegistration.servi
 import { NRPSService } from './services/nrps.service.js';
 import { createSession } from './services/session.service.js';
 import { TokenService } from './services/token.service.js';
+import { formatError } from './utils/errorFormatting.js';
 import { getValidLaunchConfig } from './utils/launchConfigValidation.js';
 
 /**
@@ -136,51 +137,41 @@ export class LTITool {
     lti_deployment_id: string;
     lti_message_hint?: string;
   }): Promise<string> {
-    const validatedParams = HandleLoginParamsSchema.parse(params);
+    try {
+      const validatedParams = HandleLoginParamsSchema.parse(params);
 
-    const nonce = crypto.randomUUID();
+      const nonce = crypto.randomUUID();
 
-    // Store nonce with expiration for replay attack prevention
-    const nonceExpirationSeconds = this.config.security?.nonceExpirationSeconds ?? 600;
-    const nonceExpiresAt = new Date(Date.now() + nonceExpirationSeconds * 1000);
-    await this.config.storage.storeNonce(nonce, nonceExpiresAt);
+      // Store nonce with expiration for replay attack prevention
+      const nonceExpirationSeconds = this.config.security?.nonceExpirationSeconds ?? 600;
+      const nonceExpiresAt = new Date(Date.now() + nonceExpirationSeconds * 1000);
+      await this.config.storage.storeNonce(nonce, nonceExpiresAt);
 
-    const state = await new SignJWT({
-      nonce,
-      iss: validatedParams.iss,
-      client_id: validatedParams.client_id,
-      target_link_uri: validatedParams.target_link_uri,
-      exp:
-        Math.floor(Date.now() / 1000) +
-        (this.config.security?.stateExpirationSeconds ?? 600),
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .sign(this.config.stateSecret);
+      const state = await new SignJWT({
+        nonce,
+        iss: validatedParams.iss,
+        client_id: validatedParams.client_id,
+        target_link_uri: validatedParams.target_link_uri,
+        exp:
+          Math.floor(Date.now() / 1000) +
+          (this.config.security?.stateExpirationSeconds ?? 600),
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(this.config.stateSecret);
 
-    const launchConfig = await getValidLaunchConfig(
-      this.config.storage,
-      validatedParams.iss,
-      validatedParams.client_id,
-      validatedParams.lti_deployment_id,
-    );
+      const launchConfig = await getValidLaunchConfig(
+        this.config.storage,
+        validatedParams.iss,
+        validatedParams.client_id,
+        validatedParams.lti_deployment_id,
+      );
 
-    const authUrl = new URL(launchConfig.authUrl);
-    authUrl.searchParams.set('scope', 'openid');
-    authUrl.searchParams.set('response_type', 'id_token');
-    authUrl.searchParams.set('response_mode', 'form_post');
-    authUrl.searchParams.set('prompt', 'none');
-    authUrl.searchParams.set('client_id', validatedParams.client_id);
-    authUrl.searchParams.set('redirect_uri', validatedParams.launchUrl.toString());
-    authUrl.searchParams.set('login_hint', validatedParams.login_hint);
-    authUrl.searchParams.set('state', state);
-    authUrl.searchParams.set('nonce', nonce);
-    authUrl.searchParams.set('lti_deployment_id', validatedParams.lti_deployment_id);
-
-    if (validatedParams.lti_message_hint) {
-      authUrl.searchParams.set('lti_message_hint', validatedParams.lti_message_hint);
+      return buildAuthUrl(launchConfig, validatedParams, state, nonce);
+    } catch (error) {
+      throw new Error(
+        `[LTI] Login initiation failed for issuer '${params.iss}', client '${params.client_id}': ${formatError(error)}`,
+      );
     }
-
-    return authUrl.toString();
   }
 
   /**
@@ -199,58 +190,62 @@ export class LTITool {
    * @throws {Error} When verification fails for security reasons
    */
   async verifyLaunch(idToken: string, state: string): Promise<LTI13JwtPayload> {
-    const validatedParams = VerifyLaunchParamsSchema.parse({ idToken, state });
+    try {
+      const validatedParams = VerifyLaunchParamsSchema.parse({ idToken, state });
 
-    // 1. UNVERIFIED - get issuer
-    const unverified = decodeJwt(validatedParams.idToken);
-    if (!unverified.iss) {
-      throw new Error('No issuer in token');
-    }
+      // 1. UNVERIFIED - get issuer
+      const unverified = decodeJwt(validatedParams.idToken);
+      if (!unverified.iss) {
+        throw new Error('No issuer in token');
+      }
 
-    // 2. get the launchConfig so we can get the remote JWKS from our data store
-    const launchConfig = await getValidLaunchConfig(
-      this.config.storage,
-      unverified.iss,
-      unverified.aud as string,
-      unverified['https://purl.imsglobal.org/spec/lti/claim/deployment_id'] as string,
-    );
-
-    // 3. Verify LMS JWT
-    let jwks = this.jwksCache.get(launchConfig.jwksUrl);
-    if (!jwks) {
-      jwks = createRemoteJWKSet(new URL(launchConfig.jwksUrl));
-      this.jwksCache.set(launchConfig.jwksUrl, jwks);
-    }
-    const { payload } = await jwtVerify(validatedParams.idToken, jwks);
-
-    // 4. Verify our state JWT
-    const { payload: stateData } = await jwtVerify(
-      validatedParams.state,
-      this.config.stateSecret,
-    );
-
-    // 5. Parse and validate LMS JWT
-    const validated = LTI13JwtPayloadSchema.parse(payload);
-
-    // 6. Verify client id matches (audience claim)
-    if (validated.aud !== launchConfig.clientId) {
-      throw new Error(
-        `Invalid client_id: expected ${launchConfig.clientId}, got ${validated.aud}`,
+      // 2. get the launchConfig so we can get the remote JWKS from our data store
+      const launchConfig = await getValidLaunchConfig(
+        this.config.storage,
+        unverified.iss,
+        unverified.aud as string,
+        unverified['https://purl.imsglobal.org/spec/lti/claim/deployment_id'] as string,
       );
-    }
 
-    // 7. Verify nonce matches
-    if (stateData.nonce !== validated.nonce) {
-      throw new Error('Nonce mismatch');
-    }
+      // 3. Verify LMS JWT
+      let jwks = this.jwksCache.get(launchConfig.jwksUrl);
+      if (!jwks) {
+        jwks = createRemoteJWKSet(new URL(launchConfig.jwksUrl));
+        this.jwksCache.set(launchConfig.jwksUrl, jwks);
+      }
+      const { payload } = await jwtVerify(validatedParams.idToken, jwks);
 
-    // 8. Check nonce hasn't been used before (prevent replay attacks)
-    const isValidNonce = await this.config.storage.validateNonce(validated.nonce);
-    if (!isValidNonce) {
-      throw new Error('Nonce has already been used or expired');
-    }
+      // 4. Verify our state JWT
+      const { payload: stateData } = await jwtVerify(
+        validatedParams.state,
+        this.config.stateSecret,
+      );
 
-    return validated;
+      // 5. Parse and validate LMS JWT
+      const validated = LTI13JwtPayloadSchema.parse(payload);
+
+      // 6. Verify client id matches (audience claim)
+      if (validated.aud !== launchConfig.clientId) {
+        throw new Error(
+          `Invalid client_id: expected ${launchConfig.clientId}, got ${validated.aud}`,
+        );
+      }
+
+      // 7. Verify nonce matches
+      if (stateData.nonce !== validated.nonce) {
+        throw new Error('Nonce mismatch');
+      }
+
+      // 8. Check nonce hasn't been used before (prevent replay attacks)
+      const isValidNonce = await this.config.storage.validateNonce(validated.nonce);
+      if (!isValidNonce) {
+        throw new Error('Nonce has already been used or expired');
+      }
+
+      return validated;
+    } catch (error) {
+      throw new Error(`[LTI] Launch verification failed: ${formatError(error)}`);
+    }
   }
 
   /**
@@ -259,17 +254,21 @@ export class LTITool {
    * @returns JWKS object with the tool's public key for JWT signature verification
    */
   async getJWKS(): Promise<JWKS> {
-    const publicJwk = await exportJWK(this.config.keyPair.publicKey);
-    return {
-      keys: [
-        {
-          ...publicJwk,
-          use: 'sig',
-          alg: 'RS256',
-          kid: this.config.security?.keyId ?? 'main',
-        },
-      ],
-    };
+    try {
+      const publicJwk = await exportJWK(this.config.keyPair.publicKey);
+      return {
+        keys: [
+          {
+            ...publicJwk,
+            use: 'sig',
+            alg: 'RS256',
+            kid: this.config.security?.keyId ?? 'main',
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`[LTI] JWKS generation failed: ${formatError(error)}`);
+    }
   }
 
   /**
@@ -279,9 +278,15 @@ export class LTITool {
    * @returns Created session object with user, context, and service information
    */
   async createSession(lti13JwtPayload: LTI13JwtPayload): Promise<LTISession> {
-    const session = createSession(lti13JwtPayload);
-    await this.config.storage.addSession(session);
-    return session;
+    try {
+      const session = createSession(lti13JwtPayload);
+      await this.config.storage.addSession(session);
+      return session;
+    } catch (error) {
+      throw new Error(
+        `[Session] Creation failed for user '${lti13JwtPayload.sub}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -291,8 +296,14 @@ export class LTITool {
    * @returns Session object if found, undefined otherwise
    */
   async getSession(sessionId: string): Promise<LTISession | undefined> {
-    const validatedSessionId = SessionIdSchema.parse(sessionId);
-    return await this.config.storage.getSession(validatedSessionId);
+    try {
+      const validatedSessionId = SessionIdSchema.parse(sessionId);
+      return await this.config.storage.getSession(validatedSessionId);
+    } catch (error) {
+      throw new Error(
+        `[Session] Retrieval failed for ID '${sessionId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -310,7 +321,13 @@ export class LTITool {
       throw new Error('score is required');
     }
 
-    await this.agsService.submitScore(session, score);
+    try {
+      await this.agsService.submitScore(session, score);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Score submission failed for user '${score.userId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -331,9 +348,15 @@ export class LTITool {
       throw new Error('session is required');
     }
 
-    const response = await this.agsService.getScores(session);
-    const data = await response.json();
-    return ResultsSchema.parse(data);
+    try {
+      const response = await this.agsService.getScores(session);
+      const data = await response.json();
+      return ResultsSchema.parse(data);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Scores retrieval failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -348,9 +371,15 @@ export class LTITool {
       throw new Error('session is required');
     }
 
-    const response = await this.agsService.listLineItems(session);
-    const data = await response.json();
-    return LineItemsSchema.parse(data);
+    try {
+      const response = await this.agsService.listLineItems(session);
+      const data = await response.json();
+      return LineItemsSchema.parse(data);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Line items listing failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -365,9 +394,15 @@ export class LTITool {
       throw new Error('session is required');
     }
 
-    const response = await this.agsService.getLineItem(session);
-    const data = await response.json();
-    return LineItemSchema.parse(data);
+    try {
+      const response = await this.agsService.getLineItem(session);
+      const data = await response.json();
+      return LineItemSchema.parse(data);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Line item retrieval failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -400,9 +435,15 @@ export class LTITool {
       throw new Error('createLineItem is required');
     }
 
-    const response = await this.agsService.createLineItem(session, createLineItem);
-    const data = await response.json();
-    return LineItemSchema.parse(data);
+    try {
+      const response = await this.agsService.createLineItem(session, createLineItem);
+      const data = await response.json();
+      return LineItemSchema.parse(data);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Line item creation failed for '${createLineItem.label}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -424,9 +465,15 @@ export class LTITool {
       throw new Error('lineItem is required');
     }
 
-    const response = await this.agsService.updateLineItem(session, updateLineItem);
-    const data = await response.json();
-    return LineItemSchema.parse(data);
+    try {
+      const response = await this.agsService.updateLineItem(session, updateLineItem);
+      const data = await response.json();
+      return LineItemSchema.parse(data);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Line item update failed for '${updateLineItem.label}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -440,7 +487,13 @@ export class LTITool {
       throw new Error('session is required');
     }
 
-    await this.agsService.deleteLineItem(session);
+    try {
+      await this.agsService.deleteLineItem(session);
+    } catch (error) {
+      throw new Error(
+        `[AGS] Line item deletion failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -463,23 +516,29 @@ export class LTITool {
       throw new Error('session is required');
     }
 
-    const response = await this.nrpsService.getMembers(session);
-    const data = await response.json();
-    const validated = NRPSContextMembershipResponseSchema.parse(data);
+    try {
+      const response = await this.nrpsService.getMembers(session);
+      const data = await response.json();
+      const validated = NRPSContextMembershipResponseSchema.parse(data);
 
-    // Transform to clean camelCase format
-    return validated.members.map((member) => ({
-      status: member.status,
-      name: member.name,
-      picture: member.picture,
-      givenName: member.given_name,
-      familyName: member.family_name,
-      middleName: member.middle_name,
-      email: member.email,
-      userId: member.user_id,
-      lisPersonSourcedId: member.lis_person_sourcedid,
-      roles: member.roles,
-    }));
+      // Transform to clean camelCase format
+      return validated.members.map((member) => ({
+        status: member.status,
+        name: member.name,
+        picture: member.picture,
+        givenName: member.given_name,
+        familyName: member.family_name,
+        middleName: member.middle_name,
+        email: member.email,
+        userId: member.user_id,
+        lisPersonSourcedId: member.lis_person_sourcedid,
+        roles: member.roles,
+      }));
+    } catch (error) {
+      throw new Error(
+        `[NRPS] Members retrieval failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -514,7 +573,13 @@ export class LTITool {
       throw new Error('contentItems is required');
     }
 
-    return await this.deepLinkingService.createResponse(session, contentItems);
+    try {
+      return await this.deepLinkingService.createResponse(session, contentItems);
+    } catch (error) {
+      throw new Error(
+        `[Deep Linking] Response creation failed for session '${session.id}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -540,9 +605,15 @@ export class LTITool {
     if (!this.dynamicRegistrationService) {
       throw new Error('Dynamic registration service is not configured');
     }
-    return await this.dynamicRegistrationService.fetchPlatformConfiguration(
-      registrationRequest,
-    );
+    try {
+      return await this.dynamicRegistrationService.fetchPlatformConfiguration(
+        registrationRequest,
+      );
+    } catch (error) {
+      throw new Error(
+        `[Dynamic Registration] Platform configuration fetch failed: ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -561,10 +632,14 @@ export class LTITool {
     if (!this.dynamicRegistrationService) {
       throw new Error('Dynamic registration service is not configured');
     }
-    return await this.dynamicRegistrationService.initiateDynamicRegistration(
-      registrationRequest,
-      requestPath,
-    );
+    try {
+      return await this.dynamicRegistrationService.initiateDynamicRegistration(
+        registrationRequest,
+        requestPath,
+      );
+    } catch (error) {
+      throw new Error(`[Dynamic Registration] Initiation failed: ${formatError(error)}`);
+    }
   }
 
   /**
@@ -582,9 +657,13 @@ export class LTITool {
       throw new Error('Dynamic registration service is not configured');
     }
 
-    return await this.dynamicRegistrationService.completeDynamicRegistration(
-      dynamicRegistrationForm,
-    );
+    try {
+      return await this.dynamicRegistrationService.completeDynamicRegistration(
+        dynamicRegistrationForm,
+      );
+    } catch (error) {
+      throw new Error(`[Dynamic Registration] Completion failed: ${formatError(error)}`);
+    }
   }
 
   // Client management
@@ -595,7 +674,11 @@ export class LTITool {
    * @returns Array of client configurations (without deployment details)
    */
   async listClients(): Promise<Omit<LTIClient, 'deployments'>[]> {
-    return await this.config.storage.listClients();
+    try {
+      return await this.config.storage.listClients();
+    } catch (error) {
+      throw new Error(`[Client] Listing failed: ${formatError(error)}`);
+    }
   }
 
   /**
@@ -608,8 +691,14 @@ export class LTITool {
     clientId: string,
     client: Partial<Omit<LTIClient, 'id' | 'deployments'>>,
   ): Promise<void> {
-    const validated = UpdateClientSchema.parse(client);
-    return await this.config.storage.updateClient(clientId, validated);
+    try {
+      const validated = UpdateClientSchema.parse(client);
+      return await this.config.storage.updateClient(clientId, validated);
+    } catch (error) {
+      throw new Error(
+        `[Client] Update failed for ID '${clientId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -619,7 +708,13 @@ export class LTITool {
    * @returns Client configuration if found, undefined otherwise
    */
   async getClientById(clientId: string): Promise<LTIClient | undefined> {
-    return await this.config.storage.getClientById(clientId);
+    try {
+      return await this.config.storage.getClientById(clientId);
+    } catch (error) {
+      throw new Error(
+        `[Client] Retrieval failed for ID '${clientId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -629,8 +724,14 @@ export class LTITool {
    * @returns The generated client ID
    */
   async addClient(client: Omit<LTIClient, 'id' | 'deployments'>): Promise<string> {
-    const validated = AddClientSchema.parse(client);
-    return await this.config.storage.addClient(validated);
+    try {
+      const validated = AddClientSchema.parse(client);
+      return await this.config.storage.addClient(validated);
+    } catch (error) {
+      throw new Error(
+        `[Client] Creation failed for issuer '${client.iss}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -639,7 +740,13 @@ export class LTITool {
    * @param clientId - Unique client identifier
    */
   async deleteClient(clientId: string): Promise<void> {
-    return await this.config.storage.deleteClient(clientId);
+    try {
+      return await this.config.storage.deleteClient(clientId);
+    } catch (error) {
+      throw new Error(
+        `[Client] Deletion failed for ID '${clientId}': ${formatError(error)}`,
+      );
+    }
   }
 
   // Deployment management
@@ -651,7 +758,13 @@ export class LTITool {
    * @returns Array of deployment configurations for the client
    */
   async listDeployments(clientId: string): Promise<LTIDeployment[]> {
-    return await this.config.storage.listDeployments(clientId);
+    try {
+      return await this.config.storage.listDeployments(clientId);
+    } catch (error) {
+      throw new Error(
+        `[Deployment] Listing failed for client '${clientId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -665,7 +778,13 @@ export class LTITool {
     clientId: string,
     deploymentId: string,
   ): Promise<LTIDeployment | undefined> {
-    return await this.config.storage.getDeployment(clientId, deploymentId);
+    try {
+      return await this.config.storage.getDeployment(clientId, deploymentId);
+    } catch (error) {
+      throw new Error(
+        `[Deployment] Retrieval failed for client '${clientId}', deployment '${deploymentId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -679,7 +798,13 @@ export class LTITool {
     clientId: string,
     deployment: Omit<LTIDeployment, 'id'>,
   ): Promise<string> {
-    return await this.config.storage.addDeployment(clientId, deployment);
+    try {
+      return await this.config.storage.addDeployment(clientId, deployment);
+    } catch (error) {
+      throw new Error(
+        `[Deployment] Creation failed for client '${clientId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -694,7 +819,17 @@ export class LTITool {
     deploymentId: string,
     deployment: Partial<LTIDeployment>,
   ): Promise<void> {
-    return await this.config.storage.updateDeployment(clientId, deploymentId, deployment);
+    try {
+      return await this.config.storage.updateDeployment(
+        clientId,
+        deploymentId,
+        deployment,
+      );
+    } catch (error) {
+      throw new Error(
+        `Deployment update failed for client '${clientId}' and deployment '${deploymentId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -704,7 +839,13 @@ export class LTITool {
    * @param deploymentId - Deployment identifier to remove
    */
   async deleteDeployment(clientId: string, deploymentId: string): Promise<void> {
-    return await this.config.storage.deleteDeployment(clientId, deploymentId);
+    try {
+      return await this.config.storage.deleteDeployment(clientId, deploymentId);
+    } catch (error) {
+      throw new Error(
+        `[Deployment] Deletion failed for client '${clientId}', deployment '${deploymentId}': ${formatError(error)}`,
+      );
+    }
   }
 
   // Dynamic Registration Session Management
@@ -720,7 +861,13 @@ export class LTITool {
     sessionId: string,
     session: LTIDynamicRegistrationSession,
   ): Promise<void> {
-    return await this.config.storage.setRegistrationSession(sessionId, session);
+    try {
+      return await this.config.storage.setRegistrationSession(sessionId, session);
+    } catch (error) {
+      throw new Error(
+        `[Dynamic Registration] Session storage failed for ID '${sessionId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -733,7 +880,13 @@ export class LTITool {
   async getRegistrationSession(
     sessionId: string,
   ): Promise<LTIDynamicRegistrationSession | undefined> {
-    return await this.config.storage.getRegistrationSession(sessionId);
+    try {
+      return await this.config.storage.getRegistrationSession(sessionId);
+    } catch (error) {
+      throw new Error(
+        `[Dynamic Registration] Session retrieval failed for ID '${sessionId}': ${formatError(error)}`,
+      );
+    }
   }
 
   /**
@@ -743,6 +896,52 @@ export class LTITool {
    * @param sessionId - Unique session identifier to delete
    */
   async deleteRegistrationSession(sessionId: string): Promise<void> {
-    return await this.config.storage.deleteRegistrationSession(sessionId);
+    try {
+      return await this.config.storage.deleteRegistrationSession(sessionId);
+    } catch (error) {
+      throw new Error(
+        `[Dynamic Registration] Session deletion failed for ID '${sessionId}': ${formatError(error)}`,
+      );
+    }
   }
+}
+
+/**
+ * Builds the authorization URL for LTI 1.3 OIDC authentication flow.
+ *
+ * @param launchConfig - Launch configuration containing auth endpoints
+ * @param validatedParams - Validated login parameters
+ * @param state - State JWT for CSRF protection
+ * @param nonce - Nonce for replay attack prevention
+ * @returns Complete authorization URL with all required parameters
+ */
+function buildAuthUrl(
+  launchConfig: { authUrl: string },
+  validatedParams: {
+    client_id: string;
+    launchUrl: URL | string;
+    login_hint: string;
+    lti_deployment_id: string;
+    lti_message_hint?: string;
+  },
+  state: string,
+  nonce: string,
+): string {
+  const authUrl = new URL(launchConfig.authUrl);
+  authUrl.searchParams.set('scope', 'openid');
+  authUrl.searchParams.set('response_type', 'id_token');
+  authUrl.searchParams.set('response_mode', 'form_post');
+  authUrl.searchParams.set('prompt', 'none');
+  authUrl.searchParams.set('client_id', validatedParams.client_id);
+  authUrl.searchParams.set('redirect_uri', validatedParams.launchUrl.toString());
+  authUrl.searchParams.set('login_hint', validatedParams.login_hint);
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('nonce', nonce);
+  authUrl.searchParams.set('lti_deployment_id', validatedParams.lti_deployment_id);
+
+  if (validatedParams.lti_message_hint) {
+    authUrl.searchParams.set('lti_message_hint', validatedParams.lti_message_hint);
+  }
+
+  return authUrl.toString();
 }
