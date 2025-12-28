@@ -173,7 +173,7 @@ export async function postRegistrationToMoodle(
   if (!response.ok) {
     const errorText = await response.json();
     logger.error({ errorText }, 'lti dynamic registration error');
-    throw new Error(errorText);
+    throw new Error(JSON.stringify(errorText));
   }
 
   const data = await response.json();
