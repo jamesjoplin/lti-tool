@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.13.1
+
+### Patch Changes
+
+- 7bb4c98: Improve JSDoc for service layers
+
 ## 0.13.0
 
 ### Minor Changes
