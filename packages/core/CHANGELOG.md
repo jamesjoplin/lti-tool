@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 0.14.1
+
+### Patch Changes
+
+- 25534f8: Fix score and results endpoint to use a cleansed ags line item endpoint without search params.
+
 ## 0.14.0
 
 ### Minor Changes
