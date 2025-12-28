@@ -28,7 +28,15 @@ const LTIDeepLinkingMessageSchema = z.object({
   target_link_uri: z.url().optional(),
   label: z.string().optional(),
   placements: z
-    .array(z.enum(['ContentArea', 'RichTextEditor', 'CourseNavigation']))
+    .array(
+      z.enum([
+        'editor_button',
+        'assignment_selection',
+        'link_selection',
+        'module_index_menu_modal',
+        'module_menu_modal',
+      ]),
+    )
     .optional(),
   supported_types: z
     .array(z.enum(['ltiResourceLink', 'file', 'html', 'link', 'image']))

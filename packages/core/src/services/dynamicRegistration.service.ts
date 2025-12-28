@@ -189,9 +189,16 @@ export class DynamicRegistrationService {
       throw new Error('Invalid or expired session');
     }
 
+    // Extract platform family from session
+    const platformFamily =
+      session.openIdConfiguration[
+        'https://purl.imsglobal.org/spec/lti-platform-configuration'
+      ].product_family_code;
+
     // 1. build payload
     const toolRegistrationPayload = this.buildRegistrationPayload(
       dynamicRegistrationForm.services ?? [],
+      platformFamily,
     );
 
     // 2. Post request to Moodle
@@ -250,28 +257,87 @@ export class DynamicRegistrationService {
   }
 
   /**
+   * Builds Canvas-specific deep linking messages for the 5 common placements.
+   * Creates separate messages for editor, module menu, assignments, modules page, and link selection.
+   *
+   * @param deepLinkingUri - URI where deep linking requests should be sent
+   * @param toolName - Display name of the tool
+   * @returns Array of Canvas deep linking message configurations
+   */
+  private buildCanvasDeepLinkingMessages(
+    deepLinkingUri: string,
+    toolName: string,
+  ): LTIMessage[] {
+    return [
+      {
+        type: 'LtiDeepLinkingRequest' as const,
+        target_link_uri: deepLinkingUri,
+        label: toolName,
+        placements: ['editor_button' as const],
+        supported_types: ['ltiResourceLink' as const],
+      },
+      {
+        type: 'LtiDeepLinkingRequest' as const,
+        target_link_uri: deepLinkingUri,
+        label: toolName,
+        placements: ['module_menu_modal' as const],
+        supported_types: ['ltiResourceLink' as const],
+      },
+      {
+        type: 'LtiDeepLinkingRequest' as const,
+        target_link_uri: deepLinkingUri,
+        label: toolName,
+        placements: ['assignment_selection' as const],
+        supported_types: ['ltiResourceLink' as const],
+      },
+      {
+        type: 'LtiDeepLinkingRequest' as const,
+        target_link_uri: deepLinkingUri,
+        label: toolName,
+        placements: ['module_index_menu_modal' as const],
+        supported_types: ['ltiResourceLink' as const],
+      },
+      {
+        type: 'LtiDeepLinkingRequest' as const,
+        target_link_uri: deepLinkingUri,
+        label: toolName,
+        placements: ['link_selection' as const],
+        supported_types: ['ltiResourceLink' as const],
+      },
+    ];
+  }
+
+  /**
    * Builds array of LTI message types based on selected services during registration.
    * Always includes ResourceLinkRequest, conditionally adds DeepLinkingRequest.
    *
    * @param selectedServices - Array of service names selected by administrator
    * @param deepLinkingUri - URI where deep linking requests should be sent
+   * @param platformFamily - Platform family code (e.g., 'canvas', 'moodle')
+   * @param toolName - Display name of the tool
    * @returns Array of LTI message configurations for the registration payload
    */
   private buildMessages(
     selectedServices: string[],
     deepLinkingUri: string,
+    platformFamily: string,
+    toolName: string,
   ): LTIMessage[] {
-    const messages = [];
+    const messages: LTIMessage[] = [];
     messages.push({ type: 'LtiResourceLinkRequest' as const });
 
     if (selectedServices?.includes('deep_linking')) {
-      messages.push({
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: 'Content Selection',
-        placements: ['ContentArea' as const], // Focus on content area only
-        supported_types: ['ltiResourceLink' as const], // Standard content selection
-      });
+      if (platformFamily.toLowerCase() === 'canvas') {
+        messages.push(...this.buildCanvasDeepLinkingMessages(deepLinkingUri, toolName));
+      } else {
+        messages.push({
+          type: 'LtiDeepLinkingRequest' as const,
+          target_link_uri: deepLinkingUri,
+          label: toolName,
+          placements: ['editor_button' as const],
+          supported_types: ['ltiResourceLink' as const],
+        });
+      }
     }
 
     return messages;
@@ -309,9 +375,13 @@ export class DynamicRegistrationService {
    * Combines tool configuration, selected services, and OAuth parameters into LTI 1.3 registration format.
    *
    * @param selectedServices - Array of service names selected by administrator
+   * @param platformFamily - Platform family code (e.g., 'canvas', 'moodle')
    * @returns Complete registration payload ready for platform submission
    */
-  private buildRegistrationPayload(selectedServices: string[]): ToolRegistrationPayload {
+  private buildRegistrationPayload(
+    selectedServices: string[],
+    platformFamily: string,
+  ): ToolRegistrationPayload {
     const config = this.dynamicRegistrationConfig;
 
     const deepLinkingUri = config.deepLinkingUri || `${config.url}/lti/deep-linking`;
@@ -319,7 +389,12 @@ export class DynamicRegistrationService {
     const launchUri = config.launchUri || `${config.url}/lti/launch`;
     const loginUri = config.loginUri || `${config.url}/lti/login`;
 
-    const messages = this.buildMessages(selectedServices, deepLinkingUri);
+    const messages = this.buildMessages(
+      selectedServices,
+      deepLinkingUri,
+      platformFamily,
+      config.name,
+    );
     const scopes = this.buildScopes(selectedServices);
 
     const toolRegistrationPayload: ToolRegistrationPayload = {
