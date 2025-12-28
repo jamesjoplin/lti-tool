@@ -1,5 +1,13 @@
 # @lti-tool/dynamodb
 
+## 0.11.2
+
+### Patch Changes
+
+- 48bd2b5: Update github actions to use npm trusted publishing.
+- Updated dependencies [48bd2b5]
+  - @lti-tool/core@0.12.2
+
 ## 0.11.1
 
 ### Patch Changes
