@@ -70,7 +70,8 @@ export class AGSService {
       gradingProgress: score.gradingProgress,
     };
 
-    const response = await fetch(`${session.services.ags.lineitem}/scores`, {
+    const agsScoreEndpoint = `${session.services.ags.lineitem}/scores`;
+    const response = await fetch(agsScoreEndpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -107,13 +108,9 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
     );
 
-    // cleanse the results URL
-    // we cannot include a search / query param
-    const lineItemUrl = new URL(session.services.ags.lineitem);
-    lineItemUrl.search = '';
-    const resultsUrl = `${lineItemUrl.toString()}/results`;
+    const resultsEndpoint = `${session.services.ags.lineitem}/results`;
 
-    const response = await fetch(resultsUrl, {
+    const response = await fetch(resultsEndpoint, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
