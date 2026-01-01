@@ -10,7 +10,8 @@ import {
   hasAGSSupport,
   hasDeepLinkingSupport,
   hasNRPSSupport,
-} from '../../utils/ltiPlatformCapabilities';
+} from '../../utils/ltiPlatformCapabilities.js';
+import { ltiServiceFetch } from '../../utils/ltiServiceFetch.js';
 
 /**
  * Generates Moodle-specific dynamic registration form HTML with service selection options.
@@ -164,7 +165,7 @@ export async function postRegistrationToMoodle(
     headers['Authorization'] = `Bearer ${registrationToken}`;
   }
 
-  const response = await fetch(registrationEndpoint, {
+  const response = await ltiServiceFetch(registrationEndpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify(registrationPayload),

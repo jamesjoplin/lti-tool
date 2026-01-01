@@ -12,6 +12,7 @@ import {
 import type { RegistrationRequest } from '../schemas/lti13/dynamicRegistration/registrationRequest.schema.js';
 import type { RegistrationResponse } from '../schemas/lti13/dynamicRegistration/registrationResponse.schema.js';
 import type { ToolRegistrationPayload } from '../schemas/lti13/dynamicRegistration/toolRegistrationPayload.schema.js';
+import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import {
   handleMoodleDynamicRegistration,
@@ -88,7 +89,7 @@ export class DynamicRegistrationService {
     registrationRequest: RegistrationRequest,
   ): Promise<OpenIDConfiguration> {
     const { openid_configuration, registration_token } = registrationRequest;
-    const response = await fetch(openid_configuration, {
+    const response = await ltiServiceFetch(openid_configuration, {
       method: 'GET',
       headers: {
         // only include registration token if it was provided

@@ -153,13 +153,15 @@ describe('AGSService', () => {
         'https://platform.example.com/api/ags/lineitem/123/scores',
         expect.objectContaining({
           method: 'POST',
-          headers: {
-            Authorization: 'Bearer mock-bearer-token',
-            'Content-Type': 'application/vnd.ims.lis.v1.score+json',
-          },
           body: expect.stringContaining('"userId":"user123"'),
         }),
       );
+      // Verify headers separately
+      const [_url, options] = mockFetch.mock.calls[0];
+      const headers = options.headers as Headers;
+      expect(headers.get('Authorization')).toBe('Bearer mock-bearer-token');
+      expect(headers.get('Content-Type')).toBe('application/vnd.ims.lis.v1.score+json');
+      expect(headers.get('User-Agent')).toMatch(/^lti-tool\/\d+\.\d+\.\d+/);
 
       // Verify score payload structure
       const fetchCall = mockFetch.mock.calls[0];
