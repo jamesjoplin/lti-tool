@@ -233,9 +233,7 @@ Production-ready security features
 
 ## Examples (coming soon)
 
-- [Hono + AWS Lambda](https://github.com/lti-tool/lti-tool-examples/tree/main/hono-aws-lambda) - Complete serverless deployment
-- [Hono + Cloudflare Workers](https://github.com/lti-tool/lti-tool-examples/tree/main/hono-cloudflare) - Edge deployment
-- [Next.js Integration](https://github.com/lti-tool/lti-tool-examples/tree/main/nextjs) - Full-stack application
+Examples repository coming soon. Watch this repo for updates!
 
 ## Get Involved
 
