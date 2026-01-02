@@ -205,8 +205,6 @@ export class DynamoDbStorage implements LTIStorage {
     );
     this.logDynamoDbResult(result, 'update client');
 
-    // TODO - we may wish to make these paths explicit someday
-    // if (issuerChanged || lmsClientIdChanged)
     // 2. Update the launch configs
     await this.updateClientLaunchConfigs(clientId);
   }
