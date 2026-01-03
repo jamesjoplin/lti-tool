@@ -1,5 +1,18 @@
 # @lti-tool/memory
 
+## 1.0.0
+
+### Major Changes
+
+- 3bcba99: First stable release of in-memory storage adapter.
+  - Development and testing storage solution
+  - Complete LTIStorage interface implementation
+
+### Patch Changes
+
+- Updated dependencies [3bcba99]
+  - @lti-tool/core@1.0.0
+
 ## 0.10.1
 
 ### Patch Changes

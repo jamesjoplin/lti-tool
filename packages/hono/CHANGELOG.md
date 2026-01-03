@@ -1,5 +1,18 @@
 # @lti-tool/hono
 
+## 1.0.0
+
+### Major Changes
+
+- 3bcba99: First stable release of Hono framework integration for LTI 1.3.
+  - Production-ready route handlers for login, launch, JWKS, deep linking, and dynamic registration
+  - LTI session middleware for protected routes
+
+### Patch Changes
+
+- Updated dependencies [3bcba99]
+  - @lti-tool/core@1.0.0
+
 ## 0.12.2
 
 ### Patch Changes
