@@ -1,5 +1,19 @@
 # @lti-tool/dynamodb
 
+## 1.0.0
+
+### Major Changes
+
+- 3bcba99: First stable release of DynamoDB storage adapter.
+  - Production-ready storage for AWS deployments
+  - Built-in caching support for improved performance
+  - Full support for clients, deployments, sessions, and nonces
+
+### Patch Changes
+
+- Updated dependencies [3bcba99]
+  - @lti-tool/core@1.0.0
+
 ## 0.11.2
 
 ### Patch Changes
