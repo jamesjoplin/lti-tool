@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities via GitHub's private vulnerability reporting.
+Please report security vulnerabilities via GitHub's private vulnerability reporting or via reaching out at security@lti-tool.dev
 
 Do NOT open public issues for security vulnerabilities.
 
