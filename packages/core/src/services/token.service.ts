@@ -1,5 +1,7 @@
 import { SignJWT } from 'jose';
 
+import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
+
 /**
  * Service for handling OAuth2 client credentials flow and JWT client assertions.
  * Used for obtaining bearer tokens to access LTI Advantage services (AGS, NRPS, etc.).
@@ -61,7 +63,7 @@ export class TokenService {
   ): Promise<string> {
     const assertion = await this.createClientAssertion(clientId, tokenUrl);
 
-    const response = await fetch(tokenUrl, {
+    const response = await ltiServiceFetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({

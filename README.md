@@ -24,16 +24,14 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 - **Performance** - 6.5ms average execution time, scales to zero
 - **Cost-effective** - Under $0.001 per 1000 LTI launches
 
-## Roadmap to 1.0
+**Fully Implemented LTI 1.3 Specification:**
 
-### Version 1.0 - Core LTI 1.3 Completion
-
-- [ ] **AGS Enhancement** - Complete Assignment and Grade Services implementation
-- [ ] **NRPS Implementation** - Names and Role Provisioning Services for member roster
-- [ ] **Dynamic Tool Registration** - Automated tool registration workflow
-- [ ] **Deep Linking Enhancement** - Complete content selection implementation
-
-> **Track Progress**: View our [public project board](https://github.com/orgs/lti-tool/projects/1) for real-time updates
+- ✅ OIDC Authentication Flow
+- ✅ Assignment and Grade Services (AGS) - Score submission, line items, results
+- ✅ Names and Role Provisioning Services (NRPS) - Member roster access
+- ✅ Deep Linking - Content selection and placement
+- ✅ Dynamic Registration - Automated tool registration
+- ✅ Security - JWT verification, nonce validation, replay attack prevention
 
 ### Future Releases
 
@@ -154,24 +152,10 @@ Pluggable storage system supports multiple backends
 ### Framework Support
 
 - **Hono** - Primary target (serverless-optimized)
-- **Express** - Planned
+- **TanStack** - Planned
 - **Fastify** - Planned
 - **Astro** - Planned
-
-## LTI 1.3 Features
-
-### Implemented
-
-- **Basic Launch** - Complete OIDC flow with security validation
-- **Assignment and Grade Services (AGS)** - Score submission
-- **Deep Linking** - Content selection (basic implementation)
-- **Security** - JWT verification, nonce validation, replay attack prevention
-
-### Planned
-
-- **Names and Role Provisioning Services (NRPS)** - Member roster
-- **Dynamic Registration** - Automated tool registration
-- **Content Migration** - LTI 1.1 to 1.3 migration tools
+- **Express** - Planned
 
 ## Testing with Moodle Sandbox
 
@@ -249,9 +233,7 @@ Production-ready security features
 
 ## Examples (coming soon)
 
-- [Hono + AWS Lambda](https://github.com/lti-tool/lti-tool-examples/tree/main/hono-aws-lambda) - Complete serverless deployment
-- [Hono + Cloudflare Workers](https://github.com/lti-tool/lti-tool-examples/tree/main/hono-cloudflare) - Edge deployment
-- [Next.js Integration](https://github.com/lti-tool/lti-tool-examples/tree/main/nextjs) - Full-stack application
+Examples repository coming soon. Watch this repo for updates!
 
 ## Get Involved
 

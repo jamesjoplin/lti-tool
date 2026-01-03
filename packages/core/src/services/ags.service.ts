@@ -8,6 +8,7 @@ import type {
 } from '../schemas/lti13/ags/lineItem.schema.js';
 import type { ScoreSubmission } from '../schemas/lti13/ags/scoreSubmission.schema.js';
 import { getValidLaunchConfig } from '../utils/launchConfigValidation.js';
+import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import type { TokenService } from './token.service.js';
 
@@ -71,7 +72,7 @@ export class AGSService {
     };
 
     const agsScoreEndpoint = `${session.services.ags.lineitem}/scores`;
-    const response = await fetch(agsScoreEndpoint, {
+    const response = await ltiServiceFetch(agsScoreEndpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -110,7 +111,7 @@ export class AGSService {
 
     const resultsEndpoint = `${session.services.ags.lineitem}/results`;
 
-    const response = await fetch(resultsEndpoint, {
+    const response = await ltiServiceFetch(resultsEndpoint, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -146,7 +147,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
-    const response = await fetch(`${session.services.ags.lineitems}`, {
+    const response = await ltiServiceFetch(`${session.services.ags.lineitems}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -182,7 +183,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
-    const response = await fetch(`${session.services.ags.lineitem}`, {
+    const response = await ltiServiceFetch(`${session.services.ags.lineitem}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -227,7 +228,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
-    const response = await fetch(`${session.services.ags.lineitems}`, {
+    const response = await ltiServiceFetch(`${session.services.ags.lineitems}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -271,7 +272,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
-    const response = await fetch(session.services.ags.lineitem, {
+    const response = await ltiServiceFetch(session.services.ags.lineitem, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -307,7 +308,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     );
 
-    const response = await fetch(session.services.ags.lineitem, {
+    const response = await ltiServiceFetch(session.services.ags.lineitem, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,

@@ -100,10 +100,14 @@ describe('TokenService', () => {
         'https://platform.example.com/token',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: expect.any(URLSearchParams),
         }),
       );
+      // Verify headers separately
+      const [_url, options] = mockFetch.mock.calls[0];
+      const headers = options.headers as Headers;
+      expect(headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
+      expect(headers.get('User-Agent')).toMatch(/^lti-tool\/\d+\.\d+\.\d+/);
 
       // Verify URLSearchParams content
       const fetchCall = mockFetch.mock.calls[0];

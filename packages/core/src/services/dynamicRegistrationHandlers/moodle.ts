@@ -5,12 +5,14 @@ import {
   type OpenIDConfiguration,
   type RegistrationResponse,
 } from '../../schemas';
+import { escapeHtml } from '../../utils/htmlEscaping.js';
 import {
   getAGSScopes,
   hasAGSSupport,
   hasDeepLinkingSupport,
   hasNRPSSupport,
-} from '../../utils/ltiPlatformCapabilities';
+} from '../../utils/ltiPlatformCapabilities.js';
+import { ltiServiceFetch } from '../../utils/ltiServiceFetch.js';
 
 /**
  * Generates Moodle-specific dynamic registration form HTML with service selection options.
@@ -55,7 +57,7 @@ export function handleMoodleDynamicRegistration(
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
       </head>
       <body class="container mt-4">
-        <form method="POST" action="${completeAction}">
+        <form method="POST" action="${escapeHtml(completeAction)}">
           <div class="mb-3">
             <label class="form-label">Available Services</label>
             ${
@@ -121,7 +123,7 @@ export function handleMoodleDynamicRegistration(
             </div>
           </div>
 
-          <input type="hidden" name="sessionToken" value="${sessionToken}">
+          <input type="hidden" name="sessionToken" value="${escapeHtml(sessionToken)}">
 
           <button type="submit" class="btn btn-primary">Register Tool</button>
         </form>
@@ -164,7 +166,7 @@ export async function postRegistrationToMoodle(
     headers['Authorization'] = `Bearer ${registrationToken}`;
   }
 
-  const response = await fetch(registrationEndpoint, {
+  const response = await ltiServiceFetch(registrationEndpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify(registrationPayload),
