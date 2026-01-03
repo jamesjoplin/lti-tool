@@ -12,6 +12,7 @@ import {
 import type { RegistrationRequest } from '../schemas/lti13/dynamicRegistration/registrationRequest.schema.js';
 import type { RegistrationResponse } from '../schemas/lti13/dynamicRegistration/registrationResponse.schema.js';
 import type { ToolRegistrationPayload } from '../schemas/lti13/dynamicRegistration/toolRegistrationPayload.schema.js';
+import { escapeHtml } from '../utils/htmlEscaping.js';
 import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import {
@@ -462,11 +463,11 @@ export class DynamicRegistrationService {
         <div class="card-body">
           <dl class="row">
             <dt class="col-sm-3">Tool Name:</dt>
-            <dd class="col-sm-9">${registrationResponse.client_name}</dd>
+            <dd class="col-sm-9">${escapeHtml(registrationResponse.client_name)}</dd>
             <dt class="col-sm-3">Client ID:</dt>
-            <dd class="col-sm-9"><code>${registrationResponse.client_id}</code></dd>
+            <dd class="col-sm-9"><code>${escapeHtml(registrationResponse.client_id)}</code></dd>
             <dt class="col-sm-3">Deployment ID:</dt>
-            <dd class="col-sm-9"><code>${registrationResponse['https://purl.imsglobal.org/spec/lti-tool-configuration'].deployment_id || 'default'}</code></dd>
+            <dd class="col-sm-9"><code>${escapeHtml(registrationResponse['https://purl.imsglobal.org/spec/lti-tool-configuration'].deployment_id || 'default')}</code></dd>
           </dl>
         </div>
       </div>

@@ -3,6 +3,7 @@ import type { BaseLogger } from 'pino';
 
 import type { LTISession } from '../interfaces/ltiSession.js';
 import type { DeepLinkingContentItem } from '../schemas/lti13/deepLinking/contentItem.schema.js';
+import { escapeHtml } from '../utils/htmlEscaping.js';
 
 /**
  * Deep Linking service for LTI 1.3.
@@ -116,8 +117,8 @@ export class DeepLinkingService {
   <title>Returning to platform...</title>
 </head>
 <body>
-  <form id="deepLinkingForm" method="POST" action="${returnUrl}">
-    <input type="hidden" name="JWT" value="${jwt}" />
+  <form id="deepLinkingForm" method="POST" action="${escapeHtml(returnUrl)}">
+    <input type="hidden" name="JWT" value="${escapeHtml(jwt)}" />
   </form>
   <script>
     document.getElementById('deepLinkingForm').submit();
