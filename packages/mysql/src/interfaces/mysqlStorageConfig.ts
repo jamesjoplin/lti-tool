@@ -1,0 +1,31 @@
+import type { Logger } from 'pino';
+
+export interface MysqlStorageConfig {
+  logger?: Logger;
+  /**
+   * MySQL connection URL in format: mysql://user:password@host:port/database
+   * Compatible with DATABASE_URL environment variable used by most ORMs
+   */
+  connectionUrl: string;
+  /**
+   * Optional mysql2 pool configuration
+   */
+  poolOptions?: {
+    /**
+     * Maximum number of connections in the pool.
+     * Defaults to 1 in serverless environments, 10 otherwise.
+     *
+     * Recommended values:
+     * - Serverless (Lambda, Cloud Functions): 1
+     * - Low traffic servers: 5-10
+     * - Medium traffic servers: 10-20
+     * - High traffic servers: 20-50
+     */
+    connectionLimit?: number;
+    queueLimit?: number;
+  };
+  /**
+   * Nonce expiration time in seconds (defaults to 600 = 10 minutes)
+   */
+  nonceExpirationSeconds?: number;
+}
