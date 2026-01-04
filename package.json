@@ -14,7 +14,7 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest --exclude=packages/mysql",
     "test:coverage": "vitest run --coverage",
     "changeset": "changeset",
     "changeset:version": "changeset version",
@@ -36,5 +36,8 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.12"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0"
   }
 }
