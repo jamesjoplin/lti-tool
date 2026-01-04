@@ -1,5 +1,11 @@
 # @lti-tool/mysql
 
+## 0.10.1
+
+### Patch Changes
+
+- ca9131c: ci bump to test github ci cd
+
 ## 0.10.0
 
 ### Minor Changes
