@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.1
+
+### Patch Changes
+
+- 162f5e0: Initial commit of production MySql storage adapter.
+
 ## 1.0.0
 
 ### Major Changes
