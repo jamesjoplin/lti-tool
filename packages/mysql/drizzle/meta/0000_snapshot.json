@@ -60,10 +60,7 @@
       "indexes": {
         "issuer_client_idx": {
           "name": "issuer_client_idx",
-          "columns": [
-            "clientId",
-            "iss"
-          ],
+          "columns": ["clientId", "iss"],
           "isUnique": false
         }
       },
@@ -71,18 +68,13 @@
       "compositePrimaryKeys": {
         "clients_id": {
           "name": "clients_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "iss_client_id_unique": {
           "name": "iss_client_id_unique",
-          "columns": [
-            "iss",
-            "clientId"
-          ]
+          "columns": ["iss", "clientId"]
         }
       },
       "checkConstraint": {}
@@ -129,9 +121,7 @@
       "indexes": {
         "deployment_id_idx": {
           "name": "deployment_id_idx",
-          "columns": [
-            "deploymentId"
-          ],
+          "columns": ["deploymentId"],
           "isUnique": false
         }
       },
@@ -140,12 +130,8 @@
           "name": "deployments_clientId_clients_id_fk",
           "tableFrom": "deployments",
           "tableTo": "clients",
-          "columnsFrom": [
-            "clientId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["clientId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -153,18 +139,13 @@
       "compositePrimaryKeys": {
         "deployments_id": {
           "name": "deployments_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "client_deployment_unique": {
           "name": "client_deployment_unique",
-          "columns": [
-            "clientId",
-            "deploymentId"
-          ]
+          "columns": ["clientId", "deploymentId"]
         }
       },
       "checkConstraint": {}
@@ -192,9 +173,7 @@
       "compositePrimaryKeys": {
         "nonces_nonce": {
           "name": "nonces_nonce",
-          "columns": [
-            "nonce"
-          ]
+          "columns": ["nonce"]
         }
       },
       "uniqueConstraints": {},
@@ -228,9 +207,7 @@
       "indexes": {
         "expires_at_idx": {
           "name": "expires_at_idx",
-          "columns": [
-            "expiresAt"
-          ],
+          "columns": ["expiresAt"],
           "isUnique": false
         }
       },
@@ -238,9 +215,7 @@
       "compositePrimaryKeys": {
         "registrationSessions_id": {
           "name": "registrationSessions_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -274,9 +249,7 @@
       "indexes": {
         "expires_at_idx": {
           "name": "expires_at_idx",
-          "columns": [
-            "expiresAt"
-          ],
+          "columns": ["expiresAt"],
           "isUnique": false
         }
       },
@@ -284,9 +257,7 @@
       "compositePrimaryKeys": {
         "sessions_id": {
           "name": "sessions_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
