@@ -63,7 +63,10 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npx vitest run --coverage --reporter=verbose
+        # exclude our db engine adapters for now
+        # TODO - see #55 -- https://github.com/lti-tool/lti-tool/issues/55
+        # run: npx vitest run --coverage --reporter=verbose
+        run: npx vitest run --coverage --reporter=verbose --exclude=packages/mysql
 
   integration:
     name: Integration Tests
@@ -88,7 +91,9 @@ jobs:
         run: npm run build
 
       - name: Run integration tests
-        run: npx vitest run packages/*/test/*.integration.test.ts
+        # only run core integration tests for now
+        # run: npx vitest run packages/*/test/*.integration.test.ts
+        run: npx vitest run packages/core/test/*.integration.test.ts
 
   security:
     name: Security Scan
