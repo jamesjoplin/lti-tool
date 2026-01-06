@@ -1,5 +1,14 @@
 # @lti-tool/mysql
 
+## 1.0.0
+
+### Major Changes
+
+- d0ea23e: First stable release of MySQL storage adapter.
+  - Production-ready storage for MySQL deployments
+  - Built-in caching support for improved performance
+  - Full support for clients, deployments, sessions, and nonces
+
 ## 0.10.1
 
 ### Patch Changes
