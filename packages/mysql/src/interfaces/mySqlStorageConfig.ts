@@ -1,6 +1,6 @@
 import type { Logger } from 'pino';
 
-export interface MysqlStorageConfig {
+export interface MySqlStorageConfig {
   logger?: Logger;
   /**
    * MySQL connection URL in format: mysql://user:password@host:port/database

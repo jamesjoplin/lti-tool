@@ -20,7 +20,7 @@ import {
   undefinedSessionValue,
 } from './cacheConfig.js';
 import * as schema from './db/schema/index.js';
-import type { MysqlStorageConfig } from './interfaces/mysqlStorageConfig.js';
+import type { MySqlStorageConfig } from './interfaces/mySqlStorageConfig.js';
 
 /**
  * MySQL implementation of LTI storage interface.
@@ -34,7 +34,7 @@ export class MySqlStorage implements LTIStorage {
   private pool: mysql.Pool;
   private nonceExpirationSeconds: number;
 
-  constructor(config: MysqlStorageConfig) {
+  constructor(config: MySqlStorageConfig) {
     this.logger =
       config?.logger ??
       ({

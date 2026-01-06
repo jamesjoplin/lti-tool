@@ -1,6 +1,6 @@
 # @lti-tool/mysql
 
-<p align="center">Production-ready MySql storage adapter for LTI 1.3. Includes caching and optimized for AWS Lambda.</p>
+<p align="center">Production-ready MySQL storage adapter for LTI 1.3. Includes caching and optimized for AWS Lambda.</p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@lti-tool/mysql"><img alt="npm" src="https://img.shields.io/npm/v/%40lti-tool%2Fmysql" /></a>
@@ -55,7 +55,7 @@ npx drizzle-kit push
 npx drizzle-kit migrate
 ```
 
-### MysqlStorageConfig
+### MySqlStorageConfig
 
 - **connectionUrl** (required): MySQL connection URL
   Format: `mysql://user:password@host:port/database`
@@ -65,6 +65,87 @@ npx drizzle-kit migrate
 - **nonceExpirationSeconds** (optional): Nonce TTL in seconds (default: 600)
 
 - **logger** (optional): Pino logger for debugging
+
+## Database Schema
+
+The adapter uses these tables:
+
+- **clients**: LTI platform clients
+  Unique constraint: `(iss, clientId)`
+- **deployments**: Platform deployments (many-to-one with clients)
+  Unique constraint: `(clientId, deploymentId)`
+- **sessions**: LTI sessions with expiration
+  Indexed: `expiresAt`
+- **nonces**: One-time use nonces
+  Primary key: `nonce`
+  Indexed: `expiresAt`
+- **registrationSessions**: Dynamic registration sessions
+  Indexed: `expiresAt`
+
+All tables use UUIDs for primary keys and include indexes for performance.
+
+### clients
+
+| Column     | Type         | Constraints           | Description                    |
+| ---------- | ------------ | --------------------- | ------------------------------ |
+| `id`       | VARCHAR(36)  | PRIMARY KEY, NOT NULL | Internal UUID for the client   |
+| `name`     | VARCHAR(255) | NOT NULL              | Human-readable platform name   |
+| `iss`      | VARCHAR(255) | NOT NULL              | Issuer URL (LMS platform)      |
+| `clientId` | VARCHAR(255) | NOT NULL              | LMS-provided client identifier |
+| `authUrl`  | TEXT         | NOT NULL              | OAuth2 authorization endpoint  |
+| `tokenUrl` | TEXT         | NOT NULL              | OAuth2 token endpoint          |
+| `jwksUrl`  | TEXT         | NOT NULL              | JWKS endpoint for public keys  |
+
+**Indexes:**
+
+- `issuer_client_idx`: `(clientId, iss)` - For fast client lookups
+- `iss_client_id_unique`: `(iss, clientId)` - Unique constraint preventing duplicate clients
+
+### deployments
+
+| Column         | Type         | Constraints           | Description                        |
+| -------------- | ------------ | --------------------- | ---------------------------------- |
+| `id`           | VARCHAR(36)  | PRIMARY KEY, NOT NULL | Internal UUID for the deployment   |
+| `deploymentId` | VARCHAR(255) | NOT NULL              | LMS-provided deployment identifier |
+| `name`         | VARCHAR(255) | NULL                  | Optional human-readable name       |
+| `description`  | TEXT         | NULL                  | Optional description               |
+| `clientId`     | VARCHAR(36)  | NOT NULL, FOREIGN KEY | References `clients.id`            |
+
+**Indexes:**
+
+- `deployment_id_idx`: `(deploymentId)` - For fast deployment lookups
+- `client_deployment_unique`: `(clientId, deploymentId)` - Unique constraint per client
+
+### sessions
+
+| Column      | Type        | Constraints           | Description                  |
+| ----------- | ----------- | --------------------- | ---------------------------- |
+| `id`        | VARCHAR(36) | PRIMARY KEY, NOT NULL | Session UUID                 |
+| `data`      | JSON        | NOT NULL              | Complete LTI session data    |
+| `expiresAt` | DATETIME    | NOT NULL              | Session expiration timestamp |
+
+**Indexes:**
+
+- `expires_at_idx`: `(expiresAt)` - For cleanup queries and expiration checks
+
+### nonces
+
+| Column      | Type         | Constraints           | Description                |
+| ----------- | ------------ | --------------------- | -------------------------- |
+| `nonce`     | VARCHAR(255) | PRIMARY KEY, NOT NULL | One-time use nonce value   |
+| `expiresAt` | DATETIME     | NOT NULL              | Nonce expiration timestamp |
+
+### registrationSessions
+
+| Column      | Type        | Constraints           | Description                       |
+| ----------- | ----------- | --------------------- | --------------------------------- |
+| `id`        | VARCHAR(36) | PRIMARY KEY, NOT NULL | Registration session UUID         |
+| `data`      | JSON        | NOT NULL              | Dynamic registration session data |
+| `expiresAt` | DATETIME    | NOT NULL              | Session expiration timestamp      |
+
+**Indexes:**
+
+- `expires_at_idx`: `(expiresAt)` - For cleanup queries and expiration checks
 
 ## Connection Pool Behavior
 
@@ -158,7 +239,7 @@ The adapter requires periodic cleanup of expired nonces and sessions.
 export const handler = async () => {
   const result = await storage.cleanup();
   console.log('Cleanup:', result);
-  // { noncesDeleted: 42, sessionsDeleted: 15,registrationSessionsDeleted: 3 }
+  // { noncesDeleted: 42, sessionsDeleted: 15, registrationSessionsDeleted: 3 }
 };
 ```
 
@@ -201,89 +282,6 @@ afterAll(async () => {
   await pool.end();
 });
 ```
-
-## Database Schema
-
-The adapter uses these tables:
-
-- **clients**: LTI platform clients
-  Unique constraint: `(iss, clientId)`
-- **deployments**: Platform deployments (many-to-one with clients)
-  Unique constraint: `(clientId, deploymentId)`
-- **sessions**: LTI sessions with expiration
-  Indexed: `expiresAt`
-- **nonces**: One-time use nonces
-  Primary key: `nonce`
-  Indexed: `expiresAt`
-- **registrationSessions**: Dynamic registration sessions
-  Indexed: `expiresAt`
-
-All tables use UUIDs for primary keys and include indexes for performance.
-
-### clients Table
-
-| Column     | Type         | Constraints           | Description                    |
-| ---------- | ------------ | --------------------- | ------------------------------ |
-| `id`       | VARCHAR(36)  | PRIMARY KEY, NOT NULL | Internal UUID for the client   |
-| `name`     | VARCHAR(255) | NOT NULL              | Human-readable platform name   |
-| `iss`      | VARCHAR(255) | NOT NULL              | Issuer URL (LMS platform)      |
-| `clientId` | VARCHAR(255) | NOT NULL              | LMS-provided client identifier |
-| `authUrl`  | TEXT         | NOT NULL              | OAuth2 authorization endpoint  |
-| `tokenUrl` | TEXT         | NOT NULL              | OAuth2 token endpoint          |
-| `jwksUrl`  | TEXT         | NOT NULL              | JWKS endpoint for public keys  |
-
-**Indexes:**
-
-- `issuer_client_idx`: `(clientId, iss)` - For fast client lookups
-- `iss_client_id_unique`: `(iss, clientId)` - Unique constraint preventing duplicate clients
-
-### deployments Table
-
-| Column         | Type         | Constraints           | Description                        |
-| -------------- | ------------ | --------------------- | ---------------------------------- |
-| `id`           | VARCHAR(36)  | PRIMARY KEY, NOT NULL | Internal UUID for the deployment   |
-| `deploymentId` | VARCHAR(255) | NOT NULL              | LMS-provided deployment identifier |
-| `name`         | VARCHAR(255) | NULL                  | Optional human-readable name       |
-| `description`  | TEXT         | NULL                  | Optional description               |
-| `clientId`     | VARCHAR(36)  | NOT NULL, FOREIGN KEY | References `clients.id`            |
-
-**Indexes:**
-
-- `deployment_id_idx`: `(deploymentId)` - For fast deployment lookups
-- `client_deployment_unique`: `(clientId, deploymentId)` - Unique constraint per client
-
-### sessions Table
-
-| Column      | Type        | Constraints           | Description                  |
-| ----------- | ----------- | --------------------- | ---------------------------- |
-| `id`        | VARCHAR(36) | PRIMARY KEY, NOT NULL | Session UUID                 |
-| `data`      | JSON        | NOT NULL              | Complete LTI session data    |
-| `expiresAt` | DATETIME    | NOT NULL              | Session expiration timestamp |
-
-**Indexes:**
-
-- `expires_at_idx`: `(expiresAt)` - For cleanup queries and expiration checks
-
-### nonces Table
-
-| Column      | Type         | Constraints           | Description                |
-| ----------- | ------------ | --------------------- | -------------------------- |
-| `nonce`     | VARCHAR(255) | PRIMARY KEY, NOT NULL | One-time use nonce value   |
-| `expiresAt` | DATETIME     | NOT NULL              | Nonce expiration timestamp |
-
-### registrationSessions Table
-
-| Column      | Type        | Constraints           | Description                       |
-| ----------- | ----------- | --------------------- | --------------------------------- |
-| `id`        | VARCHAR(36) | PRIMARY KEY, NOT NULL | Registration session UUID         |
-| `data`      | JSON        | NOT NULL              | Dynamic registration session data |
-| `expiresAt` | DATETIME    | NOT NULL              | Session expiration timestamp      |
-
-**Indexes:**
-
-- `expires_at_idx`: `(expiresAt)` - For cleanup queries and expiration checks
-  All tables use UUIDs for primary keys and include appropriate indexes for performance.
-  These tables match your Drizzle schema definitions exactly and provide comprehensive documentation for users implementing the MySQL adapter. The format is consistent with the DynamoDB README style.
 
 ## Environment Detection
 
