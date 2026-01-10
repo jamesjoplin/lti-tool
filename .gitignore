@@ -32,3 +32,6 @@ lerna-debug.log*
 
 # coverage
 coverage/
+
+# generated docuumentation
+docs/
