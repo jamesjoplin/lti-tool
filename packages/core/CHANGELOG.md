@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.2
+
+### Patch Changes
+
+- 96f0075: Package updates
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @lti-tool/dynamodb
 
+## 1.0.1
+
+### Patch Changes
+
+- 96f0075: Package updates
+- Updated dependencies [96f0075]
+  - @lti-tool/core@1.0.2
+
 ## 1.0.0
 
 ### Major Changes
