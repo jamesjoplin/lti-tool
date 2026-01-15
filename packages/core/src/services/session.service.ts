@@ -1,6 +1,14 @@
 import type { LTISession } from '../interfaces/ltiSession.js';
 import type { LTI13JwtPayload } from '../schemas/index.js';
 
+const ROLE_MAPPINGS: Record<string, string> = {
+  Instructor: 'instructor',
+  Learner: 'student',
+  Administrator: 'admin',
+  ContentDeveloper: 'content-developer',
+  Member: 'member',
+};
+
 /**
  * Creates an LTI session object from a validated LTI 1.3 JWT payload.
  * Extracts user information, context data, and available services into a structured session.
@@ -8,7 +16,7 @@ import type { LTI13JwtPayload } from '../schemas/index.js';
  * @param lti13JwtPayload - Validated LTI 1.3 JWT payload from successful launch
  * @returns Complete LTI session object with user, context, and service information
  */
-// oxlint-disable-next-line max-lines-per-function
+// oxlint-disable-next-line max-lines-per-function complexity -- flat data mapping
 export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
   const roles = lti13JwtPayload['https://purl.imsglobal.org/spec/lti/claim/roles'] || [];
   const context = lti13JwtPayload['https://purl.imsglobal.org/spec/lti/claim/context'];
@@ -25,9 +33,9 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
   const deepLinkingSettings =
     lti13JwtPayload['https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings'];
 
-  const isInstructor = roles.some((role) => role.includes('Instructor'));
-  const isStudent = roles.some((role) => role.includes('Learner'));
-  const isAdmin = roles.some((role) => role.includes('Administrator'));
+  const isInstructor = hasRole(roles, 'Instructor');
+  const isStudent = hasRole(roles, 'Learner');
+  const isAdmin = hasRole(roles, 'Administrator');
 
   const services: Record<string, unknown> = {};
   if (agsEndpoint) {
@@ -61,17 +69,7 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
   }
 
   // Extract simplified roles
-  const simplifiedRoles: string[] = [];
-  for (const role of roles) {
-    if (role.includes('Instructor')) simplifiedRoles.push('instructor');
-    if (role.includes('Learner')) simplifiedRoles.push('student');
-    if (role.includes('Administrator')) simplifiedRoles.push('admin');
-    if (role.includes('ContentDeveloper')) simplifiedRoles.push('content-developer');
-    if (role.includes('Member')) simplifiedRoles.push('member');
-  }
-
-  // Remove duplicates
-  const uniqueRoles = [...new Set(simplifiedRoles)];
+  const simplifiedRoles = simplifyRoles(roles);
 
   return {
     jwtPayload: lti13JwtPayload,
@@ -82,7 +80,7 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
       email: lti13JwtPayload.email,
       familyName: lti13JwtPayload.family_name,
       givenName: lti13JwtPayload.given_name,
-      roles: uniqueRoles,
+      roles: simplifiedRoles,
     },
     context: {
       id: context?.id || '',
@@ -117,4 +115,20 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
     isDeepLinkingAvailable: !!deepLinkingSettings,
     isNameAndRolesAvailable: !!nrpsService,
   };
+}
+
+function simplifyRoles(roles: string[]): string[] {
+  const simplified = new Set<string>();
+  for (const role of roles) {
+    for (const [key, value] of Object.entries(ROLE_MAPPINGS)) {
+      if (role.includes(key)) {
+        simplified.add(value);
+      }
+    }
+  }
+  return [...simplified];
+}
+
+function hasRole(roles: string[], pattern: string): boolean {
+  return roles.some((role) => role.includes(pattern));
 }

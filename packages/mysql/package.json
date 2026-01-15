@@ -39,7 +39,7 @@
   "dependencies": {
     "@lti-tool/core": "*",
     "drizzle-orm": "^0.45.1",
-    "lru-cache": "^11.2.2",
+    "lru-cache": "^11.2.4",
     "mysql2": "^3.16.0"
   },
   "peerDependencies": {
@@ -51,8 +51,8 @@
     }
   },
   "devDependencies": {
-    "dotenv": "^8.6.0",
+    "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
-    "pino": "^10.1.0"
+    "pino": "^10.2.0"
   }
 }
