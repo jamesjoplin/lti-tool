@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.3
+
+### Patch Changes
+
+- adf5f88: Add link to documentation site for all packages
+
 ## 1.0.2
 
 ### Patch Changes

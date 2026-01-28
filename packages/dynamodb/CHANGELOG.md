@@ -1,5 +1,13 @@
 # @lti-tool/dynamodb
 
+## 1.0.2
+
+### Patch Changes
+
+- adf5f88: Add link to documentation site for all packages
+- Updated dependencies [adf5f88]
+  - @lti-tool/core@1.0.3
+
 ## 1.0.1
 
 ### Patch Changes
