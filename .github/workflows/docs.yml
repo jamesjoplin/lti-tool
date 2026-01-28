@@ -46,6 +46,7 @@ jobs:
           path: docs
 
   deploy:
+    if: github.repository_owner == 'lti-tool'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
