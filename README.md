@@ -36,9 +36,12 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 ### Future Releases
 
 - **Examples Repository** - Comprehensive example implementations
-- **Documentation Site** - Auto-generated from JSDoc
 - **Storage Adapters** - PostgreSQL, MySQL
 - **Framework Support** - Express, Fastify, Astro, React, Angular
+
+## Documentation
+
+- [API Reference](https://docs.lti-tool.dev) - Complete API documentation
 
 ## Hono Quick Start
 

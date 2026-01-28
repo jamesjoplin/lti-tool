@@ -36,6 +36,10 @@ const ltiTool = new LTITool({
 - **Transaction Support** - Handles data integrity on deletes
 - **Tuned Connection Pool Defaults** - Connection pool defaults based on hosting environment
 
+## API Reference
+
+- [API Reference](https://docs.lti-tool.dev/modules/_lti-tool_mysql.html) - Complete API documentation
+
 ## Configuration
 
 ### Using Drizzle Kit Push (Recommended for Development)
