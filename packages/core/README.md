@@ -47,7 +47,7 @@ const session = await ltiTool.createSession(payload);
 
 ## Documentation
 
-- [API Reference](https://lti-tool.dev/docs) - (Coming soon) Complete API documentation
+- [API Reference](https://docs.lti-tool.dev) - Complete API documentation
 - [Examples](https://github.com/lti-tool/lti-tool-examples) - (Coming soon) Working examples
 
 ## Security

@@ -79,6 +79,8 @@ app.get('/protected/content', (c) => {
 
 ## API Reference
 
+- [API Reference](https://docs.lti-tool.dev/modules/_lti-tool_hono.html) - Complete API documentation
+
 ### Route Handlers
 
 Individual route handlers for LTI endpoints. Each handler takes your LTI configuration.
