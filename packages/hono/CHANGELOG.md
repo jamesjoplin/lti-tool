@@ -1,5 +1,13 @@
 # @lti-tool/hono
 
+## 1.0.3
+
+### Patch Changes
+
+- ed13d10: Package version updates
+- Updated dependencies [ed13d10]
+  - @lti-tool/core@1.0.4
+
 ## 1.0.2
 
 ### Patch Changes

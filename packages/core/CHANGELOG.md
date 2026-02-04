@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.4
+
+### Patch Changes
+
+- ed13d10: Package version updates
+
 ## 1.0.3
 
 ### Patch Changes
