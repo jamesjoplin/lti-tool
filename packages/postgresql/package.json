@@ -40,8 +40,8 @@
   "dependencies": {
     "@lti-tool/core": "*",
     "drizzle-orm": "^0.45.1",
-    "lru-cache": "^11.2.4",
-    "postgres": "^3.4.5"
+    "lru-cache": "^11.2.5",
+    "postgres": "^3.4.8"
   },
   "peerDependencies": {
     "pino": "^9.9.0"
@@ -54,6 +54,6 @@
   "devDependencies": {
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
-    "pino": "^10.2.0"
+    "pino": "^10.3.0"
   }
 }

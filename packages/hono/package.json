@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@lti-tool/core": "*",
-    "zod": "^4.3.5"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "hono": "^4.0.0",
@@ -50,7 +50,7 @@
     }
   },
   "devDependencies": {
-    "hono": "^4.11.4",
-    "pino": "^10.2.0"
+    "hono": "^4.11.7",
+    "pino": "^10.3.0"
   }
 }
