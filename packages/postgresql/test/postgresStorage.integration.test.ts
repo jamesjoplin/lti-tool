@@ -52,7 +52,8 @@ const testSession: LTISession = {
 beforeAll(() => {
   // env var or local podman / docker container credentials
   const connectionUrl =
-    process.env.DATABASE_URL || 'postgresql://lti_user:lti_password@localhost:5432/lti_test';
+    process.env.DATABASE_URL ||
+    'postgresql://lti_user:lti_password@localhost:5432/lti_test';
   sql = postgres(connectionUrl);
   db = drizzle(sql, { schema });
 

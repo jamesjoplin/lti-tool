@@ -518,7 +518,10 @@ export class PostgresStorage implements LTIStorage {
   async saveLaunchConfig(launchConfig: LTILaunchConfig): Promise<void> {
     // PostgreSQL storage doesn't need to persist launch configs separately
     // since they're derived from client + deployment data
-    this.logger.debug({ launchConfig }, 'launch config would be saved (no-op in PostgreSQL)');
+    this.logger.debug(
+      { launchConfig },
+      'launch config would be saved (no-op in PostgreSQL)',
+    );
   }
 
   async setRegistrationSession(
