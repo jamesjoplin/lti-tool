@@ -27,17 +27,17 @@
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^9.39.2",
     "@types/node": "^24.10.1",
-    "@typescript-eslint/eslint-plugin": "^8.53.0",
-    "@typescript-eslint/parser": "^8.53.0",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-oxlint": "^1.39.0",
-    "oxlint": "^1.39.0",
-    "prettier": "^3.8.0",
+    "eslint-plugin-oxlint": "^1.43.0",
+    "oxlint": "^1.43.0",
+    "prettier": "^3.8.1",
     "typedoc": "^0.28.16",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "overrides": {
     "esbuild": "^0.25.0"

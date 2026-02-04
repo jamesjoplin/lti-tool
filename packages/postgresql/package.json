@@ -1,14 +1,14 @@
 {
-  "name": "@lti-tool/dynamodb",
-  "version": "1.0.2",
-  "description": "DynamoDB storage for LTI 1.3 @lti-tool",
+  "name": "@lti-tool/postgresql",
+  "version": "0.9.0",
+  "description": "PostgreSQL storage for LTI 1.3 @lti-tool",
   "keywords": [
     "lti",
     "lti13",
     "education",
     "storage",
-    "dynamodb",
-    "aws",
+    "postgresql",
+    "postgres",
     "edtech",
     "serverless"
   ],
@@ -17,7 +17,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/lti-tool/lti-tool.git",
-    "directory": "packages/dynamodb"
+    "directory": "packages/postgresql"
   },
   "homepage": "https://github.com/lti-tool/lti-tool#readme",
   "bugs": {
@@ -38,10 +38,10 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.982.0",
-    "@aws-sdk/util-dynamodb": "^3.982.0",
     "@lti-tool/core": "*",
-    "lru-cache": "^11.2.5"
+    "drizzle-orm": "^0.45.1",
+    "lru-cache": "^11.2.5",
+    "postgres": "^3.4.8"
   },
   "peerDependencies": {
     "pino": "^9.9.0"
@@ -52,6 +52,8 @@
     }
   },
   "devDependencies": {
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.8",
     "pino": "^10.3.0"
   }
 }
