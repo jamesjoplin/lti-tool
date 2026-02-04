@@ -5,7 +5,8 @@
     "packages/hono",
     "packages/memory",
     "packages/dynamodb",
-    "packages/mysql"
+    "packages/mysql",
+    "packages/postgresql"
   ],
   "highlightLanguages": [
     "bash",
