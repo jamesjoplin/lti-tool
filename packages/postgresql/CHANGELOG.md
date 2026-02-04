@@ -1,5 +1,11 @@
 # @lti-tool/postgresql
 
+## 1.0.1
+
+### Patch Changes
+
+- 834b75e: Add README file
+
 ## 1.0.0
 
 ### Major Changes
