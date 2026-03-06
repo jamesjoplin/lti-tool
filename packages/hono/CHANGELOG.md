@@ -1,5 +1,13 @@
 # @lti-tool/hono
 
+## 1.0.4
+
+### Patch Changes
+
+- fbb5e07: Update package dependencies
+- Updated dependencies [fbb5e07]
+  - @lti-tool/core@1.0.5
+
 ## 1.0.3
 
 ### Patch Changes
