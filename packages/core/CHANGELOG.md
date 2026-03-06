@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.5
+
+### Patch Changes
+
+- fbb5e07: Update package dependencies
+
 ## 1.0.4
 
 ### Patch Changes
