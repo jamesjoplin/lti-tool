@@ -1,3 +1,4 @@
+import type * as Jose from 'jose'; // import for the vi importActual usage
 import { createRemoteJWKSet, generateKeyPair, jwtVerify } from 'jose';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,7 +9,7 @@ import { createMockLTIPayload } from './helpers/fixtures.js';
 
 // Mock createRemoteJWKSet from jose to avoid actual HTTP calls
 vi.mock('jose', async () => {
-  const actual = await vi.importActual('jose');
+  const actual = await vi.importActual<typeof Jose>('jose');
   return {
     ...actual,
     createRemoteJWKSet: vi.fn(),
