@@ -17,7 +17,8 @@ import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import {
   handleMoodleDynamicRegistration,
-  postRegistrationToMoodle,
+  handleSakaiDynamicRegistration,
+  postRegistrationToPlatform,
 } from './dynamicRegistrationHandlers/moodle.js';
 
 /**
@@ -160,6 +161,14 @@ export class DynamicRegistrationService {
           sessionToken,
         );
         break;
+      case 'sakai':
+      case 'sakailms.org':
+        html = handleSakaiDynamicRegistration(
+          openIdConfiguration,
+          requestPath,
+          sessionToken,
+        );
+        break;
       default:
         html = handleMoodleDynamicRegistration(
           openIdConfiguration,
@@ -203,8 +212,8 @@ export class DynamicRegistrationService {
       platformFamily,
     );
 
-    // 2. Post request to Moodle
-    const registrationResponse = await postRegistrationToMoodle(
+    // 2. Post registration request to the platform
+    const registrationResponse = await postRegistrationToPlatform(
       session.openIdConfiguration.registration_endpoint,
       toolRegistrationPayload,
       this.logger,

@@ -40,6 +40,33 @@ export function handleMoodleDynamicRegistration(
   currentPath: string,
   sessionToken: string,
 ): string {
+  return handlePlatformDynamicRegistration(
+    openIdConfiguration,
+    currentPath,
+    sessionToken,
+    'Moodle',
+  );
+}
+
+export function handleSakaiDynamicRegistration(
+  openIdConfiguration: OpenIDConfiguration,
+  currentPath: string,
+  sessionToken: string,
+): string {
+  return handlePlatformDynamicRegistration(
+    openIdConfiguration,
+    currentPath,
+    sessionToken,
+    'Sakai',
+  );
+}
+
+function handlePlatformDynamicRegistration(
+  openIdConfiguration: OpenIDConfiguration,
+  currentPath: string,
+  sessionToken: string,
+  platformName: string,
+): string {
   const hasAGS = hasAGSSupport(openIdConfiguration);
   const hasNRPS = hasNRPSSupport(openIdConfiguration);
   const hasDeepLinking = hasDeepLinkingSupport(openIdConfiguration);
@@ -53,7 +80,7 @@ export function handleMoodleDynamicRegistration(
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Configure LTI Advantage Settings for Moodle</title>
+        <title>Configure LTI Advantage Settings for ${escapeHtml(platformName)}</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
       </head>
       <body class="container mt-4">
@@ -156,6 +183,20 @@ export function handleMoodleDynamicRegistration(
  * ```
  */
 export async function postRegistrationToMoodle(
+  registrationEndpoint: string,
+  registrationPayload: unknown,
+  logger: BaseLogger,
+  registrationToken?: string,
+): Promise<RegistrationResponse> {
+  return postRegistrationToPlatform(
+    registrationEndpoint,
+    registrationPayload,
+    logger,
+    registrationToken,
+  );
+}
+
+export async function postRegistrationToPlatform(
   registrationEndpoint: string,
   registrationPayload: unknown,
   logger: BaseLogger,
