@@ -2,4 +2,4 @@
 '@lti-tool/hono': patch
 ---
 
-Sakai compatibility — @ottenhoff 🎉
+Sakai compatibility — @ottenhoff 🎉 #82
