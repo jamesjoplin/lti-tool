@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build core package
+        run: npm run build --workspace=@lti-tool/core
+
       - name: Run tests
         # exclude our db engine adapters for now
         # TODO - see #55 -- https://github.com/lti-tool/lti-tool/issues/55
