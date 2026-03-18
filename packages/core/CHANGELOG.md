@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.0.7
+
+### Patch Changes
+
+- b0a98e0: Resiliency -- retry launch JWT verification on JWKS kid miss -- @ottenhoff 🎉 #94
+
 ## 1.0.6
 
 ### Patch Changes
