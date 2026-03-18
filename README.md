@@ -18,7 +18,7 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 **Key features**
 
 - **Serverless-first** - Optimized for AWS Lambda, Cloudflare Workers
-- **Pluggable storage** - DynamoDB, Memory, PostgreSQL (planned), MySQL (planned)
+- **Pluggable storage** - DynamoDB, Memory, PostgreSQL, MySQL
 - **Modern frameworks** - Hono (primary), Express/Fastify (planned)
 - **Security-focused** - JWT verification, nonce validation, replay attack prevention
 - **Performance** - 6.5ms average execution time, scales to zero
@@ -36,7 +36,7 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 ### Future Releases
 
 - **Examples Repository** - Comprehensive example implementations
-- **Storage Adapters** - PostgreSQL, MySQL
+- **Storage Adapters** - Cloudflare D1
 - **Framework Support** - Express, Fastify, Astro, React, Angular
 
 ## Documentation
