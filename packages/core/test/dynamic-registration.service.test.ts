@@ -4,12 +4,18 @@ import type { LTIStorage } from '../src/interfaces/ltiStorage.js';
 import type { DynamicRegistrationForm } from '../src/schemas/lti13/dynamicRegistration/ltiDynamicRegistration.schema.js';
 import { DynamicRegistrationService } from '../src/services/dynamicRegistration.service.js';
 
-const createOpenIdConfiguration = (productFamilyCode: string) => ({
-  issuer: 'https://sakai.example',
-  authorization_endpoint: 'https://sakai.example/imsoidc/lti13/oidc_auth',
-  registration_endpoint: 'https://sakai.example/imsblis/lti13/registration_endpoint/1',
-  jwks_uri: 'https://sakai.example/imsblis/lti13/keyset',
-  token_endpoint: 'https://sakai.example/imsblis/lti13/token/1',
+const createOpenIdConfiguration = ({
+  productFamilyCode,
+  baseUrl = 'https://platform.example',
+}: {
+  productFamilyCode: string;
+  baseUrl?: string;
+}) => ({
+  issuer: baseUrl,
+  authorization_endpoint: `${baseUrl}/imsoidc/lti13/oidc_auth`,
+  registration_endpoint: `${baseUrl}/imsblis/lti13/registration_endpoint/1`,
+  jwks_uri: `${baseUrl}/imsblis/lti13/keyset`,
+  token_endpoint: `${baseUrl}/imsblis/lti13/token/1`,
   token_endpoint_auth_methods_supported: ['private_key_jwt'],
   token_endpoint_auth_signing_alg_values_supported: ['RS256'],
   scopes_supported: ['openid'],
@@ -61,7 +67,7 @@ describe('DynamicRegistrationService', () => {
     global.crypto.randomUUID = originalRandomUUID;
   });
 
-  it('renders a Sakai-specific registration page for sakailms.org platforms', async () => {
+  it('renders the generic registration page for spec-compliant platforms', async () => {
     const storage = createStorageMock();
     const logger = { debug: vi.fn(), error: vi.fn() } as any;
     const service = new DynamicRegistrationService(
@@ -73,11 +79,20 @@ describe('DynamicRegistrationService', () => {
       logger,
     );
 
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(createOpenIdConfiguration('sakailms.org')), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify(
+            createOpenIdConfiguration({
+              productFamilyCode: 'sakailms.org',
+              baseUrl: 'https://sakai.example',
+            }),
+          ),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
     ) as any;
 
     const html = await service.initiateDynamicRegistration(
@@ -89,7 +104,8 @@ describe('DynamicRegistrationService', () => {
       '/lti/register',
     );
 
-    expect(html).toContain('Configure LTI Advantage Settings for Sakai');
+    expect(html).toContain('Configure LTI Advantage Settings');
+    expect(html).not.toContain('for Sakai');
     expect(storage.setRegistrationSession).toHaveBeenCalledWith(
       'session-token-123',
       expect.objectContaining({
@@ -98,7 +114,7 @@ describe('DynamicRegistrationService', () => {
     );
   });
 
-  it('posts registration to Sakai endpoint with bearer token and stores deployment', async () => {
+  it('posts registration to the platform endpoint with bearer token and stores deployment', async () => {
     const storage = createStorageMock();
     const logger = { debug: vi.fn(), error: vi.fn() } as any;
     const service = new DynamicRegistrationService(
@@ -112,42 +128,46 @@ describe('DynamicRegistrationService', () => {
 
     const sessionToken = 'session-token-123';
     (storage.getRegistrationSession as any).mockResolvedValue({
-      openIdConfiguration: createOpenIdConfiguration('sakailms.org'),
+      openIdConfiguration: createOpenIdConfiguration({
+        productFamilyCode: 'sakailms.org',
+        baseUrl: 'https://sakai.example',
+      }),
       registrationToken: 'reg-token-123',
       expiresAt: Date.now() + 10_000,
     });
     (storage.addClient as any).mockResolvedValue('client-record-id');
     (storage.addDeployment as any).mockResolvedValue('deployment-record-id');
 
-    global.fetch = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          client_id: 'sakai-client-id',
-          application_type: 'web',
-          response_types: ['id_token'],
-          grant_types: ['implicit', 'client_credentials'],
-          initiate_login_uri: 'https://lti.local.test/lti/login',
-          redirect_uris: [
-            'https://lti.local.test',
-            'https://lti.local.test/lti/launch',
-          ],
-          client_name: 'My LTI Tool',
-          jwks_uri: 'https://lti.local.test/lti/jwks',
-          token_endpoint_auth_method: 'private_key_jwt',
-          scope: '',
-          'https://purl.imsglobal.org/spec/lti-tool-configuration': {
-            domain: 'lti.local.test',
-            target_link_uri: 'https://lti.local.test',
-            claims: ['iss', 'sub', 'name', 'email'],
-            messages: [{ type: 'LtiResourceLinkRequest' }],
-            deployment_id: '1',
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            client_id: 'sakai-client-id',
+            application_type: 'web',
+            response_types: ['id_token'],
+            grant_types: ['implicit', 'client_credentials'],
+            initiate_login_uri: 'https://lti.local.test/lti/login',
+            redirect_uris: [
+              'https://lti.local.test',
+              'https://lti.local.test/lti/launch',
+            ],
+            client_name: 'My LTI Tool',
+            jwks_uri: 'https://lti.local.test/lti/jwks',
+            token_endpoint_auth_method: 'private_key_jwt',
+            scope: '',
+            'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+              domain: 'lti.local.test',
+              target_link_uri: 'https://lti.local.test',
+              claims: ['iss', 'sub', 'name', 'email'],
+              messages: [{ type: 'LtiResourceLinkRequest' }],
+              deployment_id: '1',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
           },
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      ),
+        ),
     ) as any;
 
     const form: DynamicRegistrationForm = {
@@ -174,5 +194,84 @@ describe('DynamicRegistrationService', () => {
     );
     const headers = new Headers(fetchCall[1].headers);
     expect(headers.get('Authorization')).toBe('Bearer reg-token-123');
+  });
+
+  it('uses the Canvas profile to expand deep-linking messages', async () => {
+    const storage = createStorageMock();
+    const logger = { debug: vi.fn(), error: vi.fn() } as any;
+    const service = new DynamicRegistrationService(
+      storage,
+      {
+        url: 'https://lti.local.test',
+        name: 'My LTI Tool',
+      },
+      logger,
+    );
+
+    const sessionToken = 'session-token-123';
+    (storage.getRegistrationSession as any).mockResolvedValue({
+      openIdConfiguration: createOpenIdConfiguration({
+        productFamilyCode: 'canvas',
+        baseUrl: 'https://canvas.example',
+      }),
+      registrationToken: 'reg-token-123',
+      expiresAt: Date.now() + 10_000,
+    });
+    (storage.addClient as any).mockResolvedValue('client-record-id');
+    (storage.addDeployment as any).mockResolvedValue('deployment-record-id');
+
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            client_id: 'canvas-client-id',
+            application_type: 'web',
+            response_types: ['id_token'],
+            grant_types: ['implicit', 'client_credentials'],
+            initiate_login_uri: 'https://lti.local.test/lti/login',
+            redirect_uris: [
+              'https://lti.local.test',
+              'https://lti.local.test/lti/launch',
+            ],
+            client_name: 'My LTI Tool',
+            jwks_uri: 'https://lti.local.test/lti/jwks',
+            token_endpoint_auth_method: 'private_key_jwt',
+            scope: '',
+            'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+              domain: 'lti.local.test',
+              target_link_uri: 'https://lti.local.test',
+              claims: ['iss', 'sub', 'name', 'email'],
+              messages: [{ type: 'LtiResourceLinkRequest' }],
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    ) as any;
+
+    const form: DynamicRegistrationForm = {
+      sessionToken,
+      services: ['deep_linking'],
+    };
+    await service.completeDynamicRegistration(form);
+
+    const fetchCall = (global.fetch as any).mock.calls[0] as [string, RequestInit];
+    const requestBody = JSON.parse(fetchCall[1].body as string);
+    const messages =
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'].messages;
+
+    expect(messages).toHaveLength(6);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'LtiResourceLinkRequest' }),
+        expect.objectContaining({ placements: ['editor_button'] }),
+        expect.objectContaining({ placements: ['module_menu_modal'] }),
+        expect.objectContaining({ placements: ['assignment_selection'] }),
+        expect.objectContaining({ placements: ['module_index_menu_modal'] }),
+        expect.objectContaining({ placements: ['link_selection'] }),
+      ]),
+    );
   });
 });

@@ -15,7 +15,7 @@ import {
 import { ltiServiceFetch } from '../../utils/ltiServiceFetch.js';
 
 /**
- * Generates Moodle-specific dynamic registration form HTML with service selection options.
+ * Generates a generic dynamic registration form with service selection options.
  * Creates a Bootstrap 5 form that detects available LTI Advantage services from the platform
  * configuration and presents them as selectable checkboxes to the administrator.
  *
@@ -26,7 +26,7 @@ import { ltiServiceFetch } from '../../utils/ltiServiceFetch.js';
  *
  * @example
  * ```typescript
- * const html = handleMoodleDynamicRegistration(
+ * const html = renderDynamicRegistrationForm(
  *   platformConfig,
  *   '/lti/register',
  *   'uuid-session-token'
@@ -35,37 +35,10 @@ import { ltiServiceFetch } from '../../utils/ltiServiceFetch.js';
  * ```
  */
 // oxlint-disable-next-line max-lines-per-function
-export function handleMoodleDynamicRegistration(
+export function renderDynamicRegistrationForm(
   openIdConfiguration: OpenIDConfiguration,
   currentPath: string,
   sessionToken: string,
-): string {
-  return handlePlatformDynamicRegistration(
-    openIdConfiguration,
-    currentPath,
-    sessionToken,
-    'Moodle',
-  );
-}
-
-export function handleSakaiDynamicRegistration(
-  openIdConfiguration: OpenIDConfiguration,
-  currentPath: string,
-  sessionToken: string,
-): string {
-  return handlePlatformDynamicRegistration(
-    openIdConfiguration,
-    currentPath,
-    sessionToken,
-    'Sakai',
-  );
-}
-
-function handlePlatformDynamicRegistration(
-  openIdConfiguration: OpenIDConfiguration,
-  currentPath: string,
-  sessionToken: string,
-  platformName: string,
 ): string {
   const hasAGS = hasAGSSupport(openIdConfiguration);
   const hasNRPS = hasNRPSSupport(openIdConfiguration);
@@ -80,7 +53,7 @@ function handlePlatformDynamicRegistration(
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Configure LTI Advantage Settings for ${escapeHtml(platformName)}</title>
+        <title>Configure LTI Advantage Settings</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
       </head>
       <body class="container mt-4">
@@ -160,7 +133,7 @@ function handlePlatformDynamicRegistration(
 }
 
 /**
- * Submits tool registration payload to Moodle's dynamic registration endpoint.
+ * Submits tool registration payload to a platform's dynamic registration endpoint.
  * Handles the HTTP communication with proper authentication, error handling, and response validation.
  * Validates the registration response against the LTI 1.3 specification schema.
  *
@@ -173,8 +146,8 @@ function handlePlatformDynamicRegistration(
  *
  * @example
  * ```typescript
- * const response = await postRegistrationToMoodle(
- *   'https://moodle.edu/mod/lti/register.php',
+ * const response = await postRegistrationToPlatform(
+ *   'https://platform.example/registration',
  *   registrationPayload,
  *   logger,
  *   'optional-bearer-token'
@@ -182,20 +155,6 @@ function handlePlatformDynamicRegistration(
  * console.log('Registered with client ID:', response.client_id);
  * ```
  */
-export async function postRegistrationToMoodle(
-  registrationEndpoint: string,
-  registrationPayload: unknown,
-  logger: BaseLogger,
-  registrationToken?: string,
-): Promise<RegistrationResponse> {
-  return postRegistrationToPlatform(
-    registrationEndpoint,
-    registrationPayload,
-    logger,
-    registrationToken,
-  );
-}
-
 export async function postRegistrationToPlatform(
   registrationEndpoint: string,
   registrationPayload: unknown,
