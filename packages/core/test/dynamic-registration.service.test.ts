@@ -53,6 +53,25 @@ const createStorageMock = () =>
     deleteRegistrationSession: vi.fn(),
   }) as unknown as LTIStorage;
 
+const createRegistrationResponse = (clientId: string) => ({
+  client_id: clientId,
+  application_type: 'web',
+  response_types: ['id_token'],
+  grant_types: ['implicit', 'client_credentials'],
+  initiate_login_uri: 'https://lti.local.test/lti/login',
+  redirect_uris: ['https://lti.local.test', 'https://lti.local.test/lti/launch'],
+  client_name: 'My LTI Tool',
+  jwks_uri: 'https://lti.local.test/lti/jwks',
+  token_endpoint_auth_method: 'private_key_jwt',
+  scope: '',
+  'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+    domain: 'lti.local.test',
+    target_link_uri: 'https://lti.local.test',
+    claims: ['iss', 'sub', 'name', 'email'],
+    messages: [{ type: 'LtiResourceLinkRequest' }],
+  },
+});
+
 describe('DynamicRegistrationService', () => {
   const originalFetch = global.fetch;
   const originalRandomUUID = global.crypto.randomUUID;
@@ -142,24 +161,11 @@ describe('DynamicRegistrationService', () => {
       async () =>
         new Response(
           JSON.stringify({
-            client_id: 'sakai-client-id',
-            application_type: 'web',
-            response_types: ['id_token'],
-            grant_types: ['implicit', 'client_credentials'],
-            initiate_login_uri: 'https://lti.local.test/lti/login',
-            redirect_uris: [
-              'https://lti.local.test',
-              'https://lti.local.test/lti/launch',
-            ],
-            client_name: 'My LTI Tool',
-            jwks_uri: 'https://lti.local.test/lti/jwks',
-            token_endpoint_auth_method: 'private_key_jwt',
-            scope: '',
+            ...createRegistrationResponse('sakai-client-id'),
             'https://purl.imsglobal.org/spec/lti-tool-configuration': {
-              domain: 'lti.local.test',
-              target_link_uri: 'https://lti.local.test',
-              claims: ['iss', 'sub', 'name', 'email'],
-              messages: [{ type: 'LtiResourceLinkRequest' }],
+              ...createRegistrationResponse('sakai-client-id')[
+                'https://purl.imsglobal.org/spec/lti-tool-configuration'
+              ],
               deployment_id: '1',
             },
           }),
@@ -196,7 +202,7 @@ describe('DynamicRegistrationService', () => {
     expect(headers.get('Authorization')).toBe('Bearer reg-token-123');
   });
 
-  it('uses the Canvas profile to expand deep-linking messages', async () => {
+  it('keeps non-Canvas platforms on the generic message path', async () => {
     const storage = createStorageMock();
     const logger = { debug: vi.fn(), error: vi.fn() } as any;
     const service = new DynamicRegistrationService(
@@ -211,8 +217,8 @@ describe('DynamicRegistrationService', () => {
     const sessionToken = 'session-token-123';
     (storage.getRegistrationSession as any).mockResolvedValue({
       openIdConfiguration: createOpenIdConfiguration({
-        productFamilyCode: 'canvas',
-        baseUrl: 'https://canvas.example',
+        productFamilyCode: 'brightspace',
+        baseUrl: 'https://brightspace.example',
       }),
       registrationToken: 'reg-token-123',
       expiresAt: Date.now() + 10_000,
@@ -223,27 +229,7 @@ describe('DynamicRegistrationService', () => {
     global.fetch = vi.fn(
       async () =>
         new Response(
-          JSON.stringify({
-            client_id: 'canvas-client-id',
-            application_type: 'web',
-            response_types: ['id_token'],
-            grant_types: ['implicit', 'client_credentials'],
-            initiate_login_uri: 'https://lti.local.test/lti/login',
-            redirect_uris: [
-              'https://lti.local.test',
-              'https://lti.local.test/lti/launch',
-            ],
-            client_name: 'My LTI Tool',
-            jwks_uri: 'https://lti.local.test/lti/jwks',
-            token_endpoint_auth_method: 'private_key_jwt',
-            scope: '',
-            'https://purl.imsglobal.org/spec/lti-tool-configuration': {
-              domain: 'lti.local.test',
-              target_link_uri: 'https://lti.local.test',
-              claims: ['iss', 'sub', 'name', 'email'],
-              messages: [{ type: 'LtiResourceLinkRequest' }],
-            },
-          }),
+          JSON.stringify(createRegistrationResponse('brightspace-client-id')),
           {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -262,16 +248,113 @@ describe('DynamicRegistrationService', () => {
     const messages =
       requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'].messages;
 
-    expect(messages).toHaveLength(6);
-    expect(messages).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: 'LtiResourceLinkRequest' }),
-        expect.objectContaining({ placements: ['editor_button'] }),
-        expect.objectContaining({ placements: ['module_menu_modal'] }),
-        expect.objectContaining({ placements: ['assignment_selection'] }),
-        expect.objectContaining({ placements: ['module_index_menu_modal'] }),
-        expect.objectContaining({ placements: ['link_selection'] }),
-      ]),
+    expect(messages).toEqual([
+      { type: 'LtiResourceLinkRequest' },
+      {
+        type: 'LtiDeepLinkingRequest',
+        target_link_uri: 'https://lti.local.test/lti/deep-linking',
+        label: 'My LTI Tool',
+        placements: ['editor_button'],
+        supported_types: ['ltiResourceLink'],
+      },
+    ]);
+  });
+
+  it('uses the Canvas profile to add Canvas-specific fields and configurable placements', async () => {
+    const storage = createStorageMock();
+    const logger = { debug: vi.fn(), error: vi.fn() } as any;
+    const service = new DynamicRegistrationService(
+      storage,
+      {
+        url: 'https://lti.local.test',
+        name: 'My LTI Tool',
+        platforms: {
+          canvas: {
+            clientUri: 'https://lti.local.test',
+            privacyLevel: 'public',
+            toolId: 'canvas-tool-123',
+            vendor: 'Acme Learning',
+            secondaryDomains: ['cdn.lti.local.test'],
+            resourceLinkPlacements: ['course_navigation', 'link_selection'],
+            deepLinkPlacements: ['editor_button', 'assignment_selection'],
+          },
+        },
+      },
+      logger,
     );
+
+    const sessionToken = 'session-token-123';
+    (storage.getRegistrationSession as any).mockResolvedValue({
+      openIdConfiguration: createOpenIdConfiguration({
+        productFamilyCode: 'canvas',
+        baseUrl: 'https://canvas.example',
+      }),
+      registrationToken: 'reg-token-123',
+      expiresAt: Date.now() + 10_000,
+    });
+    (storage.addClient as any).mockResolvedValue('client-record-id');
+    (storage.addDeployment as any).mockResolvedValue('deployment-record-id');
+
+    global.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify(createRegistrationResponse('canvas-client-id')), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    ) as any;
+
+    const form: DynamicRegistrationForm = {
+      sessionToken,
+      services: ['deep_linking'],
+    };
+    await service.completeDynamicRegistration(form);
+
+    const fetchCall = (global.fetch as any).mock.calls[0] as [string, RequestInit];
+    const requestBody = JSON.parse(fetchCall[1].body as string);
+    const messages =
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'].messages;
+
+    expect(requestBody.client_uri).toBe('https://lti.local.test');
+    expect(
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'][
+        'https://canvas.instructure.com/lti/privacy_level'
+      ],
+    ).toBe('public');
+    expect(
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'][
+        'https://canvas.instructure.com/lti/tool_id'
+      ],
+    ).toBe('canvas-tool-123');
+    expect(
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration'][
+        'https://canvas.instructure.com/lti/vendor'
+      ],
+    ).toBe('Acme Learning');
+    expect(
+      requestBody['https://purl.imsglobal.org/spec/lti-tool-configuration']
+        .secondary_domains,
+    ).toEqual(['cdn.lti.local.test']);
+    expect(messages).toEqual([
+      {
+        type: 'LtiResourceLinkRequest',
+        label: 'My LTI Tool',
+        target_link_uri: 'https://lti.local.test/lti/launch',
+        placements: ['course_navigation', 'link_selection'],
+      },
+      {
+        type: 'LtiDeepLinkingRequest',
+        target_link_uri: 'https://lti.local.test/lti/deep-linking',
+        label: 'My LTI Tool',
+        placements: ['editor_button'],
+        supported_types: ['ltiResourceLink'],
+      },
+      {
+        type: 'LtiDeepLinkingRequest',
+        target_link_uri: 'https://lti.local.test/lti/deep-linking',
+        label: 'My LTI Tool',
+        placements: ['assignment_selection'],
+        supported_types: ['ltiResourceLink'],
+      },
+    ]);
   });
 });

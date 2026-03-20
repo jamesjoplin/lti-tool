@@ -18,7 +18,10 @@ import {
   postRegistrationToPlatform,
   renderDynamicRegistrationForm,
 } from './dynamicRegistrationHandlers/platform.js';
-import { buildDynamicRegistrationMessages } from './dynamicRegistrationProfiles.js';
+import {
+  buildDynamicRegistrationMessages,
+  transformDynamicRegistrationPayload,
+} from './dynamicRegistrationProfiles.js';
 
 /**
  * Service for handling LTI 1.3 dynamic registration workflows.
@@ -280,31 +283,34 @@ export class DynamicRegistrationService {
     const messages = buildDynamicRegistrationMessages(openIdConfiguration, {
       selectedServices,
       deepLinkingUri,
+      launchUri,
       toolName: config.name,
+      registrationConfig: config,
     });
     const scopes = this.buildScopes(selectedServices);
 
-    const toolRegistrationPayload: ToolRegistrationPayload = {
-      application_type: 'web',
-      response_types: ['id_token'],
-      grant_types: ['implicit', 'client_credentials'],
-      initiate_login_uri: loginUri,
-      redirect_uris: [config.url, launchUri, ...(config.redirectUris || [])],
-      client_name: config.name,
-      jwks_uri: jwksUri,
-      logo_uri: config.logo,
-      scope: scopes.join(' '),
-      token_endpoint_auth_method: 'private_key_jwt',
-      'https://purl.imsglobal.org/spec/lti-tool-configuration': {
-        domain: new URL(config.url).hostname,
-        description: config.description,
-        target_link_uri: config.url,
-        claims: ['iss', 'sub', 'name', 'email'],
-        messages,
+    return transformDynamicRegistrationPayload(openIdConfiguration, {
+      payload: {
+        application_type: 'web',
+        response_types: ['id_token'],
+        grant_types: ['implicit', 'client_credentials'],
+        initiate_login_uri: loginUri,
+        redirect_uris: [config.url, launchUri, ...(config.redirectUris || [])],
+        client_name: config.name,
+        jwks_uri: jwksUri,
+        logo_uri: config.logo,
+        scope: scopes.join(' '),
+        token_endpoint_auth_method: 'private_key_jwt',
+        'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+          domain: new URL(config.url).hostname,
+          description: config.description,
+          target_link_uri: config.url,
+          claims: ['iss', 'sub', 'name', 'email'],
+          messages,
+        },
       },
-    };
-
-    return toolRegistrationPayload;
+      registrationConfig: config,
+    });
   }
 
   private async validateDynamicRegistrationResponse(

@@ -1,11 +1,22 @@
 import * as z from 'zod';
 
+const LTIMessageBaseSchema = z
+  .object({
+    target_link_uri: z.url().optional(),
+    label: z.string().optional(),
+    icon_uri: z.url().optional(),
+    custom_parameters: z.record(z.string(), z.string()).optional(),
+    placements: z.array(z.string()).optional(),
+    roles: z.array(z.string()).optional(),
+  })
+  .loose();
+
 /**
  * Zod schema for LTI 1.3 Resource Link Request message configuration.
  * Represents the standard tool launch message type for accessing tool content.
  * This is the most common LTI message type for regular tool launches.
  */
-const LTIResourceLinkMessageSchema = z.object({
+const LTIResourceLinkMessageSchema = LTIMessageBaseSchema.extend({
   type: z.literal('LtiResourceLinkRequest'),
 });
 
@@ -23,28 +34,11 @@ const LTIResourceLinkMessageSchema = z.object({
  * @property roles - Optional array of LIS role URIs that can access deep linking
  * @property custom_parameters - Optional custom parameters for deep linking configuration
  */
-const LTIDeepLinkingMessageSchema = z.object({
+const LTIDeepLinkingMessageSchema = LTIMessageBaseSchema.extend({
   type: z.literal('LtiDeepLinkingRequest'),
-  target_link_uri: z.url().optional(),
-  label: z.string().optional(),
-  placements: z
-    .array(
-      z.enum([
-        'editor_button',
-        'assignment_selection',
-        'link_selection',
-        'module_index_menu_modal',
-        'module_menu_modal',
-      ]),
-    )
-    .optional(),
-  supported_types: z
-    .array(z.enum(['ltiResourceLink', 'file', 'html', 'link', 'image']))
-    .optional(),
+  supported_types: z.array(z.string()).optional(),
   supported_media_types: z.array(z.string()).optional(), // e.g., ['image/*', 'video/*']
-  roles: z.array(z.string()).optional(), // LIS role URIs
-  custom_parameters: z.record(z.string(), z.string()).optional(),
-});
+}).loose();
 
 /**
  * Discriminated union schema for all supported LTI 1.3 message types.
