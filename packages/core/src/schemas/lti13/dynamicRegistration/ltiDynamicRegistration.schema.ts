@@ -23,7 +23,12 @@ import * as z from 'zod';
  */
 export const DynamicRegistrationFormSchema = z.object({
   services: z
-    .array(z.enum(['ags', 'nrps', 'deep_linking', 'tool_settings', 'basic_outcome']))
+    .preprocess((value) => {
+      if (typeof value === 'string') {
+        return [value];
+      }
+      return value;
+    }, z.array(z.enum(['ags', 'nrps', 'deep_linking', 'tool_settings', 'basic_outcome'])))
     .optional(),
   sessionToken: z.string(),
 });

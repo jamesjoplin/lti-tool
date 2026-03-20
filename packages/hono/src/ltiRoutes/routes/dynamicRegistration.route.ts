@@ -37,7 +37,14 @@ export function completeDynamicRegistrationRouteHandler(config: LTIConfig): Hand
     try {
       // 1. Parse and validate form data
       const formData = await c.req.parseBody({ all: true }); // services array parsing requires all param
-      const validated = DynamicRegistrationFormSchema.parse(formData);
+      const normalizedFormData = {
+        ...formData,
+        services:
+          typeof formData.services === 'string'
+            ? [formData.services]
+            : formData.services,
+      };
+      const validated = DynamicRegistrationFormSchema.parse(normalizedFormData);
 
       const ltiTool = getLTITool(config);
       const successHtml = await ltiTool.completeDynamicRegistration(validated);
