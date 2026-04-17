@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DynamicRegistrationFormSchema,
   HandleLoginParamsSchema,
   LTI13JwtPayloadSchema,
   LTI13LaunchSchema,
@@ -73,6 +74,32 @@ describe('Schema Validation Tests', () => {
       };
 
       expect(() => HandleLoginParamsSchema.parse(invalidParams)).toThrow();
+    });
+  });
+
+  describe('DynamicRegistrationFormSchema', () => {
+    it('accepts a single selected service from form-urlencoded submissions', () => {
+      const parsed = DynamicRegistrationFormSchema.parse({
+        services: 'deep_linking',
+        sessionToken: 'session-token-123',
+      });
+
+      expect(parsed).toEqual({
+        services: ['deep_linking'],
+        sessionToken: 'session-token-123',
+      });
+    });
+
+    it('accepts multiple selected services as an array', () => {
+      const parsed = DynamicRegistrationFormSchema.parse({
+        services: ['ags', 'deep_linking'],
+        sessionToken: 'session-token-123',
+      });
+
+      expect(parsed).toEqual({
+        services: ['ags', 'deep_linking'],
+        sessionToken: 'session-token-123',
+      });
     });
   });
 

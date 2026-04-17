@@ -4,7 +4,6 @@ import type { DynamicRegistrationConfig } from '../interfaces/ltiConfig.js';
 import type { LTIDynamicRegistrationSession } from '../interfaces/ltiDynamicRegistrationSession.js';
 import type { LTIStorage } from '../interfaces/ltiStorage.js';
 import type { DynamicRegistrationForm } from '../schemas/lti13/dynamicRegistration/ltiDynamicRegistration.schema.js';
-import type { LTIMessage } from '../schemas/lti13/dynamicRegistration/ltiMessages.schema.js';
 import {
   type OpenIDConfiguration,
   openIDConfigurationSchema,
@@ -16,9 +15,13 @@ import { escapeHtml } from '../utils/htmlEscaping.js';
 import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import {
-  handleMoodleDynamicRegistration,
-  postRegistrationToMoodle,
-} from './dynamicRegistrationHandlers/moodle.js';
+  postRegistrationToPlatform,
+  renderDynamicRegistrationForm,
+} from './dynamicRegistrationHandlers/platform.js';
+import {
+  buildDynamicRegistrationMessages,
+  transformDynamicRegistrationPayload,
+} from './dynamicRegistrationProfiles.js';
 
 /**
  * Service for handling LTI 1.3 dynamic registration workflows.
@@ -30,7 +33,7 @@ import {
  * ## Key Features
  * - **Platform Discovery**: Fetches and validates OpenID Connect configuration from LTI platforms
  * - **Security Validation**: Enforces hostname matching and session-based CSRF protection
- * - **Vendor Support**: Provides platform-specific registration forms (Moodle, with extensibility for Canvas, Sakai, etc.)
+ * - **Platform Profiles**: Uses a generic registration flow with targeted platform-specific message overrides only where needed
  * - **Service Selection**: Allows administrators to choose which LTI Advantage services to enable (AGS, NRPS, Deep Linking)
  * - **Automatic Storage**: Persists client and deployment configurations for future launches
  *
@@ -123,8 +126,8 @@ export class DynamicRegistrationService {
   }
 
   /**
-   * Initiates LTI 1.3 dynamic registration by fetching platform configuration and generating registration form.
-   * Creates a temporary session and returns vendor-specific HTML form for service selection.
+   * Initiates LTI 1.3 dynamic registration by fetching platform configuration and generating a registration form.
+   * Creates a temporary session and returns HTML form for service selection.
    *
    * @param registrationRequest - Registration request containing openid_configuration URL and optional registration_token
    * @param requestPath - Current request path used to build form action URLs
@@ -147,29 +150,8 @@ export class DynamicRegistrationService {
       expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
     });
 
-    // 3. build form based on LMS vendor
-    const { product_family_code } =
-      openIdConfiguration['https://purl.imsglobal.org/spec/lti-platform-configuration'];
-
-    let html: string;
-    switch (product_family_code.toLowerCase()) {
-      case 'moodle':
-        html = handleMoodleDynamicRegistration(
-          openIdConfiguration,
-          requestPath,
-          sessionToken,
-        );
-        break;
-      default:
-        html = handleMoodleDynamicRegistration(
-          openIdConfiguration,
-          requestPath,
-          sessionToken,
-        );
-        break;
-    }
-
-    return html;
+    // 3. build registration form
+    return renderDynamicRegistrationForm(openIdConfiguration, requestPath, sessionToken);
   }
 
   /**
@@ -191,20 +173,14 @@ export class DynamicRegistrationService {
       throw new Error('Invalid or expired session');
     }
 
-    // Extract platform family from session
-    const platformFamily =
-      session.openIdConfiguration[
-        'https://purl.imsglobal.org/spec/lti-platform-configuration'
-      ].product_family_code;
-
     // 1. build payload
     const toolRegistrationPayload = this.buildRegistrationPayload(
       dynamicRegistrationForm.services ?? [],
-      platformFamily,
+      session.openIdConfiguration,
     );
 
-    // 2. Post request to Moodle
-    const registrationResponse = await postRegistrationToMoodle(
+    // 2. Post registration request to the platform
+    const registrationResponse = await postRegistrationToPlatform(
       session.openIdConfiguration.registration_endpoint,
       toolRegistrationPayload,
       this.logger,
@@ -259,93 +235,6 @@ export class DynamicRegistrationService {
   }
 
   /**
-   * Builds Canvas-specific deep linking messages for the 5 common placements.
-   * Creates separate messages for editor, module menu, assignments, modules page, and link selection.
-   *
-   * @param deepLinkingUri - URI where deep linking requests should be sent
-   * @param toolName - Display name of the tool
-   * @returns Array of Canvas deep linking message configurations
-   */
-  private buildCanvasDeepLinkingMessages(
-    deepLinkingUri: string,
-    toolName: string,
-  ): LTIMessage[] {
-    return [
-      {
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: toolName,
-        placements: ['editor_button' as const],
-        supported_types: ['ltiResourceLink' as const],
-      },
-      {
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: toolName,
-        placements: ['module_menu_modal' as const],
-        supported_types: ['ltiResourceLink' as const],
-      },
-      {
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: toolName,
-        placements: ['assignment_selection' as const],
-        supported_types: ['ltiResourceLink' as const],
-      },
-      {
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: toolName,
-        placements: ['module_index_menu_modal' as const],
-        supported_types: ['ltiResourceLink' as const],
-      },
-      {
-        type: 'LtiDeepLinkingRequest' as const,
-        target_link_uri: deepLinkingUri,
-        label: toolName,
-        placements: ['link_selection' as const],
-        supported_types: ['ltiResourceLink' as const],
-      },
-    ];
-  }
-
-  /**
-   * Builds array of LTI message types based on selected services during registration.
-   * Always includes ResourceLinkRequest, conditionally adds DeepLinkingRequest.
-   *
-   * @param selectedServices - Array of service names selected by administrator
-   * @param deepLinkingUri - URI where deep linking requests should be sent
-   * @param platformFamily - Platform family code (e.g., 'canvas', 'moodle')
-   * @param toolName - Display name of the tool
-   * @returns Array of LTI message configurations for the registration payload
-   */
-  private buildMessages(
-    selectedServices: string[],
-    deepLinkingUri: string,
-    platformFamily: string,
-    toolName: string,
-  ): LTIMessage[] {
-    const messages: LTIMessage[] = [];
-    messages.push({ type: 'LtiResourceLinkRequest' as const });
-
-    if (selectedServices?.includes('deep_linking')) {
-      if (platformFamily.toLowerCase() === 'canvas') {
-        messages.push(...this.buildCanvasDeepLinkingMessages(deepLinkingUri, toolName));
-      } else {
-        messages.push({
-          type: 'LtiDeepLinkingRequest' as const,
-          target_link_uri: deepLinkingUri,
-          label: toolName,
-          placements: ['editor_button' as const],
-          supported_types: ['ltiResourceLink' as const],
-        });
-      }
-    }
-
-    return messages;
-  }
-
-  /**
    * Builds array of OAuth scopes based on selected LTI services during registration.
    * Maps service selections to their corresponding LTI Advantage scope URIs.
    *
@@ -377,12 +266,12 @@ export class DynamicRegistrationService {
    * Combines tool configuration, selected services, and OAuth parameters into LTI 1.3 registration format.
    *
    * @param selectedServices - Array of service names selected by administrator
-   * @param platformFamily - Platform family code (e.g., 'canvas', 'moodle')
+   * @param openIdConfiguration - OpenID configuration used to select any platform-specific profile overrides
    * @returns Complete registration payload ready for platform submission
    */
   private buildRegistrationPayload(
     selectedServices: string[],
-    platformFamily: string,
+    openIdConfiguration: OpenIDConfiguration,
   ): ToolRegistrationPayload {
     const config = this.dynamicRegistrationConfig;
 
@@ -391,35 +280,37 @@ export class DynamicRegistrationService {
     const launchUri = config.launchUri || `${config.url}/lti/launch`;
     const loginUri = config.loginUri || `${config.url}/lti/login`;
 
-    const messages = this.buildMessages(
+    const messages = buildDynamicRegistrationMessages(openIdConfiguration, {
       selectedServices,
       deepLinkingUri,
-      platformFamily,
-      config.name,
-    );
+      launchUri,
+      toolName: config.name,
+      registrationConfig: config,
+    });
     const scopes = this.buildScopes(selectedServices);
 
-    const toolRegistrationPayload: ToolRegistrationPayload = {
-      application_type: 'web',
-      response_types: ['id_token'],
-      grant_types: ['implicit', 'client_credentials'],
-      initiate_login_uri: loginUri,
-      redirect_uris: [config.url, launchUri, ...(config.redirectUris || [])],
-      client_name: config.name,
-      jwks_uri: jwksUri,
-      logo_uri: config.logo,
-      scope: scopes.join(' '),
-      token_endpoint_auth_method: 'private_key_jwt',
-      'https://purl.imsglobal.org/spec/lti-tool-configuration': {
-        domain: new URL(config.url).hostname,
-        description: config.description,
-        target_link_uri: config.url,
-        claims: ['iss', 'sub', 'name', 'email'],
-        messages,
+    return transformDynamicRegistrationPayload(openIdConfiguration, {
+      payload: {
+        application_type: 'web',
+        response_types: ['id_token'],
+        grant_types: ['implicit', 'client_credentials'],
+        initiate_login_uri: loginUri,
+        redirect_uris: [config.url, launchUri, ...(config.redirectUris || [])],
+        client_name: config.name,
+        jwks_uri: jwksUri,
+        logo_uri: config.logo,
+        scope: scopes.join(' '),
+        token_endpoint_auth_method: 'private_key_jwt',
+        'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+          domain: new URL(config.url).hostname,
+          description: config.description,
+          target_link_uri: config.url,
+          claims: ['iss', 'sub', 'name', 'email'],
+          messages,
+        },
       },
-    };
-
-    return toolRegistrationPayload;
+      registrationConfig: config,
+    });
   }
 
   private async validateDynamicRegistrationResponse(

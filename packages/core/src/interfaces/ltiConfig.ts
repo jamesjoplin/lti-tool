@@ -2,6 +2,23 @@ import type { Logger } from 'pino';
 
 import type { LTIStorage } from './ltiStorage.js';
 
+export interface CanvasDynamicRegistrationConfig {
+  /** Optional Canvas-specific privacy level for launches */
+  privacyLevel?: 'public' | 'name_only' | 'email_only' | 'anonymous';
+  /** Optional Canvas-specific stable identifier for correlating tool deployments */
+  toolId?: string;
+  /** Optional Canvas-specific vendor string */
+  vendor?: string;
+  /** Optional OIDC client URI shown to administrators in Canvas */
+  clientUri?: string;
+  /** Optional secondary domains included in the Canvas tool configuration */
+  secondaryDomains?: string[];
+  /** Optional Canvas resource-link placements to expose during registration */
+  resourceLinkPlacements?: string[];
+  /** Optional Canvas deep-link placements; defaults to the common Canvas set when omitted */
+  deepLinkPlacements?: string[];
+}
+
 /** Dynamic registration configuration for LTI 1.3 tool registration */
 export interface DynamicRegistrationConfig {
   /** Base URL of the LTI tool (e.g., 'https://my-tool.com') */
@@ -22,6 +39,11 @@ export interface DynamicRegistrationConfig {
   launchUri?: string;
   /** Optional custom JWKS endpoint (defaults to {url}/lti/jwks) */
   jwksUri?: string;
+  /** Optional platform-specific dynamic registration extensions */
+  platforms?: {
+    /** Optional Canvas-specific registration settings */
+    canvas?: CanvasDynamicRegistrationConfig;
+  };
 }
 
 /**
