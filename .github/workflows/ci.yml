@@ -15,10 +15,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -51,10 +51,10 @@ jobs:
         node-version: [20, 22, 24]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -66,10 +66,7 @@ jobs:
         run: npm run build --workspace=@lti-tool/core
 
       - name: Run tests
-        # exclude our db engine adapters for now
-        # TODO - see #55 -- https://github.com/lti-tool/lti-tool/issues/55
-        # run: npx vitest run --coverage --reporter=verbose
-        run: npx vitest run --coverage --reporter=verbose --exclude=packages/mysql --exclude=packages/postgresql
+        run: npx vitest run --coverage --reporter=verbose --exclude="**/*.integration.test.ts"
 
   integration:
     name: Integration Tests
@@ -79,10 +76,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -93,10 +90,73 @@ jobs:
       - name: Build packages
         run: npm run build
 
-      - name: Run integration tests
-        # only run core integration tests for now
-        # run: npx vitest run packages/*/test/*.integration.test.ts
+      - name: Run core integration tests
         run: npx vitest run packages/core/test/*.integration.test.ts
+
+  adapter-integration:
+    name: Adapter Integration (${{ matrix.adapter }})
+    runs-on: ubuntu-latest
+    needs: [quality]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - adapter: mysql
+            service-image: mysql:8.0
+            database-url: mysql://lti_user:lti_password@127.0.0.1:3306/lti_test
+            port: 3306
+            health-cmd: mysqladmin ping -h 127.0.0.1 -uroot -proot
+          - adapter: postgresql
+            service-image: postgres:16
+            database-url: postgresql://lti_user:lti_password@127.0.0.1:5432/lti_test
+            port: 5432
+            health-cmd: pg_isready -h 127.0.0.1 -U lti_user -d lti_test
+    services:
+      db:
+        image: ${{ matrix.service-image }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lti_test
+          MYSQL_USER: lti_user
+          MYSQL_PASSWORD: lti_password
+          POSTGRES_USER: lti_user
+          POSTGRES_PASSWORD: lti_password
+          POSTGRES_DB: lti_test
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+        options: >-
+          --health-cmd "${{ matrix.health-cmd }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build core package
+        run: npm run build --workspace=@lti-tool/core
+
+      - name: Apply adapter schema
+        working-directory: packages/${{ matrix.adapter }}
+        env:
+          DATABASE_URL: ${{ matrix.database-url }}
+        run: npx drizzle-kit migrate
+
+      - name: Run adapter integration tests
+        env:
+          DATABASE_URL: ${{ matrix.database-url }}
+        run: npx vitest run packages/${{ matrix.adapter }}/test/*.integration.test.ts
 
   security:
     name: Security Scan
@@ -108,10 +168,10 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -128,7 +188,7 @@ jobs:
   ci:
     name: CI Status
     runs-on: ubuntu-latest
-    needs: [quality, test, integration, security]
+    needs: [quality, test, integration, adapter-integration, security]
     if: always() && github.repository_owner == 'lti-tool'
     permissions:
       contents: read
@@ -138,6 +198,7 @@ jobs:
           if [[ "${{ needs.quality.result }}" == "success" &&
                 "${{ needs.test.result }}" == "success" &&
                 "${{ needs.integration.result }}" == "success" &&
+                "${{ needs.adapter-integration.result }}" == "success" &&
                 "${{ needs.security.result }}" == "success" ]]; then
             echo "All CI jobs passed"
           else

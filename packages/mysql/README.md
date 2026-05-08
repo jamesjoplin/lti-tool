@@ -272,7 +272,8 @@ podman run -d \
 ### Run Tests
 
 ```bash
-DATABASE_URL="mysql://lti_user:lti_password@localhost:3306/lti_test" npm test
+DATABASE_URL="mysql://lti_user:lti_password@127.0.0.1:3306/lti_test" npx drizzle-kit migrate
+DATABASE_URL="mysql://lti_user:lti_password@127.0.0.1:3306/lti_test" npm test
 ```
 
 **Important:** Always close the pool(s) after tests:

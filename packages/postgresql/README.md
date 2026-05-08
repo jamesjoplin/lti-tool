@@ -262,7 +262,7 @@ podman-compose up -d
 # Or Podman directly
 podman run -d \
   --name lti-postgres \
-  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_PASSWORD=lti_password \
   -e POSTGRES_DB=lti_test \
   -e POSTGRES_USER=lti_user \
   -p 5432:5432 \
@@ -272,7 +272,8 @@ podman run -d \
 ### Run Tests
 
 ```bash
-DATABASE_URL="postgresql://lti_user:postgres@localhost:5432/lti_test" npm test
+DATABASE_URL="postgresql://lti_user:lti_password@127.0.0.1:5432/lti_test" npx drizzle-kit migrate
+DATABASE_URL="postgresql://lti_user:lti_password@127.0.0.1:5432/lti_test" npm test
 ```
 
 **Important:** Always close the pool after tests:
