@@ -37,7 +37,8 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@lti-tool/core": "*"
+    "@lti-tool/core": "*",
+    "drizzle-orm": "^0.45.1"
   },
   "peerDependencies": {
     "pino": "^9.9.0"
@@ -48,6 +49,7 @@
     }
   },
   "devDependencies": {
+    "drizzle-kit": "^0.31.10",
     "miniflare": "^4.20260504.0",
     "pino": "^10.3.1"
   }

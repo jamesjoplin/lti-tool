@@ -6,52 +6,26 @@ import type {
   LTISession,
   LTIStorage,
 } from '@lti-tool/core';
+import { and, eq, gt, isNull, lte } from 'drizzle-orm';
+import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
 import type { Logger } from 'pino';
 
-import type { D1Database, D1StorageConfig } from './interfaces/d1StorageConfig.js';
+import * as schema from './db/schema/index.js';
+import type { D1StorageConfig } from './interfaces/d1StorageConfig.js';
 
-interface ClientRow {
-  id: string;
-  name: string;
-  iss: string;
-  client_id: string;
-  auth_url: string;
-  token_url: string;
-  jwks_url: string;
-}
-
-interface DeploymentRow {
-  id: string;
-  deployment_id: string;
-  name: string | null;
-  description: string | null;
-  client_id: string;
-}
-
-interface SessionRow {
-  id: string;
-  data: string;
-  expires_at: string;
-}
-
-interface RegistrationSessionRow {
-  id: string;
-  data: string;
-  expires_at: string;
-}
+type DeploymentRow = typeof schema.deploymentsTable.$inferSelect;
 
 /**
  * Cloudflare D1 implementation of LTI storage interface.
  *
- * The adapter intentionally uses raw D1 statements to keep the Cloudflare
- * dependency surface small. Apply `schema.sql` before constructing this class.
+ * Stores clients, deployments, sessions, and nonces in D1.
+ * Uses Drizzle ORM for type-safe database operations.
  */
 export class D1Storage implements LTIStorage {
-  private database: D1Database;
   private logger: Logger;
+  private db: DrizzleD1Database<typeof schema>;
 
   constructor(config: D1StorageConfig) {
-    this.database = config.database;
     this.logger =
       config.logger ??
       ({
@@ -60,37 +34,37 @@ export class D1Storage implements LTIStorage {
         warn: () => {},
         error: () => {},
       } as unknown as Logger);
+
+    this.db = drizzle(config.database, { schema });
   }
 
   async listClients(): Promise<Omit<LTIClient, 'deployments'>[]> {
     this.logger.debug('listing all clients');
 
-    const rows = await this.database
-      .prepare(
-        'SELECT id, name, iss, client_id, auth_url, token_url, jwks_url FROM lti_tool_clients ORDER BY name, id',
-      )
-      .all<ClientRow>();
+    const clients = await this.db
+      .select()
+      .from(schema.clientsTable)
+      .orderBy(schema.clientsTable.name, schema.clientsTable.id);
 
-    return rows.results.map(mapClientRow);
+    return clients;
   }
 
   async getClientById(clientId: string): Promise<LTIClient | undefined> {
     this.logger.debug({ clientId }, 'getting client by id');
 
-    const row = await this.database
-      .prepare(
-        'SELECT id, name, iss, client_id, auth_url, token_url, jwks_url FROM lti_tool_clients WHERE id = ?',
-      )
-      .bind(clientId)
-      .first<ClientRow>();
+    const [client] = await this.db
+      .select()
+      .from(schema.clientsTable)
+      .where(eq(schema.clientsTable.id, clientId))
+      .limit(1);
 
-    if (!row) {
+    if (!client) {
       this.logger.warn({ clientId }, 'client not found');
       return undefined;
     }
 
     return {
-      ...mapClientRow(row),
+      ...client,
       deployments: await this.listDeployments(clientId),
     };
   }
@@ -99,19 +73,12 @@ export class D1Storage implements LTIStorage {
     const clientId = crypto.randomUUID();
     this.logger.info({ clientId, client }, 'adding client');
 
-    await this.database
-      .prepare(
-        'INSERT INTO lti_tool_clients (id, name, iss, client_id, auth_url, token_url, jwks_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      )
-      .bind(
-        clientId,
-        client.name,
-        client.iss,
-        client.clientId,
-        client.authUrl,
-        client.tokenUrl,
-        client.jwksUrl,
-      )
+    await this.db
+      .insert(schema.clientsTable)
+      .values({
+        id: clientId,
+        ...client,
+      })
       .run();
 
     return clientId;
@@ -131,56 +98,43 @@ export class D1Storage implements LTIStorage {
       ...client,
     };
 
-    await this.database
-      .prepare(
-        'UPDATE lti_tool_clients SET name = ?, iss = ?, client_id = ?, auth_url = ?, token_url = ?, jwks_url = ? WHERE id = ?',
-      )
-      .bind(
-        updated.name,
-        updated.iss,
-        updated.clientId,
-        updated.authUrl,
-        updated.tokenUrl,
-        updated.jwksUrl,
-        clientId,
-      )
+    await this.db
+      .update(schema.clientsTable)
+      .set({
+        name: updated.name,
+        iss: updated.iss,
+        clientId: updated.clientId,
+        authUrl: updated.authUrl,
+        tokenUrl: updated.tokenUrl,
+        jwksUrl: updated.jwksUrl,
+      })
+      .where(eq(schema.clientsTable.id, clientId))
       .run();
   }
 
   async deleteClient(clientId: string): Promise<void> {
     this.logger.info({ clientId }, 'deleting client');
 
-    if (this.database.batch) {
-      await this.database.batch([
-        this.database
-          .prepare('DELETE FROM lti_tool_deployments WHERE client_id = ?')
-          .bind(clientId),
-        this.database.prepare('DELETE FROM lti_tool_clients WHERE id = ?').bind(clientId),
-      ]);
-      return;
-    }
-
-    await this.database
-      .prepare('DELETE FROM lti_tool_deployments WHERE client_id = ?')
-      .bind(clientId)
+    await this.db
+      .delete(schema.deploymentsTable)
+      .where(eq(schema.deploymentsTable.clientId, clientId))
       .run();
-    await this.database
-      .prepare('DELETE FROM lti_tool_clients WHERE id = ?')
-      .bind(clientId)
+    await this.db
+      .delete(schema.clientsTable)
+      .where(eq(schema.clientsTable.id, clientId))
       .run();
   }
 
   async listDeployments(clientId: string): Promise<LTIDeployment[]> {
     this.logger.debug({ clientId }, 'listing deployments for client');
 
-    const rows = await this.database
-      .prepare(
-        'SELECT id, deployment_id, name, description, client_id FROM lti_tool_deployments WHERE client_id = ? ORDER BY deployment_id, id',
-      )
-      .bind(clientId)
-      .all<DeploymentRow>();
+    const deployments = await this.db
+      .select()
+      .from(schema.deploymentsTable)
+      .where(eq(schema.deploymentsTable.clientId, clientId))
+      .orderBy(schema.deploymentsTable.deploymentId, schema.deploymentsTable.id);
 
-    return rows.results.map(mapDeploymentRow);
+    return deployments.map(mapDeploymentRow);
   }
 
   async getDeployment(
@@ -189,14 +143,18 @@ export class D1Storage implements LTIStorage {
   ): Promise<LTIDeployment | undefined> {
     this.logger.debug({ clientId, deploymentInternalId }, 'getting deployment by id');
 
-    const row = await this.database
-      .prepare(
-        'SELECT id, deployment_id, name, description, client_id FROM lti_tool_deployments WHERE client_id = ? AND id = ?',
+    const [deployment] = await this.db
+      .select()
+      .from(schema.deploymentsTable)
+      .where(
+        and(
+          eq(schema.deploymentsTable.clientId, clientId),
+          eq(schema.deploymentsTable.id, deploymentInternalId),
+        ),
       )
-      .bind(clientId, deploymentInternalId)
-      .first<DeploymentRow>();
+      .limit(1);
 
-    return row ? mapDeploymentRow(row) : undefined;
+    return deployment ? mapDeploymentRow(deployment) : undefined;
   }
 
   async addDeployment(
@@ -206,17 +164,15 @@ export class D1Storage implements LTIStorage {
     const deploymentInternalId = crypto.randomUUID();
     this.logger.info({ clientId, deploymentInternalId, deployment }, 'adding deployment');
 
-    await this.database
-      .prepare(
-        'INSERT INTO lti_tool_deployments (id, client_id, deployment_id, name, description) VALUES (?, ?, ?, ?, ?)',
-      )
-      .bind(
-        deploymentInternalId,
+    await this.db
+      .insert(schema.deploymentsTable)
+      .values({
+        id: deploymentInternalId,
         clientId,
-        deployment.deploymentId,
-        deployment.name ?? null,
-        deployment.description ?? null,
-      )
+        deploymentId: deployment.deploymentId,
+        name: deployment.name ?? null,
+        description: deployment.description ?? null,
+      })
       .run();
 
     return deploymentInternalId;
@@ -240,16 +196,18 @@ export class D1Storage implements LTIStorage {
       ...deployment,
     };
 
-    await this.database
-      .prepare(
-        'UPDATE lti_tool_deployments SET deployment_id = ?, name = ?, description = ? WHERE client_id = ? AND id = ?',
-      )
-      .bind(
-        updated.deploymentId,
-        updated.name ?? null,
-        updated.description ?? null,
-        clientId,
-        deploymentInternalId,
+    await this.db
+      .update(schema.deploymentsTable)
+      .set({
+        deploymentId: updated.deploymentId,
+        name: updated.name ?? null,
+        description: updated.description ?? null,
+      })
+      .where(
+        and(
+          eq(schema.deploymentsTable.clientId, clientId),
+          eq(schema.deploymentsTable.id, deploymentInternalId),
+        ),
       )
       .run();
   }
@@ -257,28 +215,37 @@ export class D1Storage implements LTIStorage {
   async deleteDeployment(clientId: string, deploymentInternalId: string): Promise<void> {
     this.logger.info({ clientId, deploymentInternalId }, 'deleting deployment');
 
-    await this.database
-      .prepare('DELETE FROM lti_tool_deployments WHERE client_id = ? AND id = ?')
-      .bind(clientId, deploymentInternalId)
+    await this.db
+      .delete(schema.deploymentsTable)
+      .where(
+        and(
+          eq(schema.deploymentsTable.clientId, clientId),
+          eq(schema.deploymentsTable.id, deploymentInternalId),
+        ),
+      )
       .run();
   }
 
   async getSession(sessionId: string): Promise<LTISession | undefined> {
     this.logger.debug({ sessionId }, 'getting session');
 
-    const row = await this.database
-      .prepare(
-        'SELECT id, data, expires_at FROM lti_tool_sessions WHERE id = ? AND expires_at > ?',
+    const [session] = await this.db
+      .select()
+      .from(schema.sessionsTable)
+      .where(
+        and(
+          eq(schema.sessionsTable.id, sessionId),
+          gt(schema.sessionsTable.expiresAt, new Date().toISOString()),
+        ),
       )
-      .bind(sessionId, new Date().toISOString())
-      .first<SessionRow>();
+      .limit(1);
 
-    if (!row) return undefined;
+    if (!session) return undefined;
 
     return {
-      id: row.id,
-      ...JSON.parse(row.data),
-    } as LTISession;
+      id: session.id,
+      ...session.data,
+    };
   }
 
   async addSession(session: LTISession): Promise<string> {
@@ -287,10 +254,7 @@ export class D1Storage implements LTIStorage {
     const { id, ...data } = session;
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    await this.database
-      .prepare('INSERT INTO lti_tool_sessions (id, data, expires_at) VALUES (?, ?, ?)')
-      .bind(id, JSON.stringify(data), expiresAt)
-      .run();
+    await this.db.insert(schema.sessionsTable).values({ id, data, expiresAt }).run();
 
     return id;
   }
@@ -298,25 +262,40 @@ export class D1Storage implements LTIStorage {
   async storeNonce(nonce: string, expiresAt: Date): Promise<void> {
     this.logger.debug({ nonce, expiresAt }, 'storing nonce');
 
-    await this.database
-      .prepare(
-        'INSERT OR REPLACE INTO lti_tool_nonces (nonce, expires_at, used_at) VALUES (?, ?, NULL)',
-      )
-      .bind(nonce, expiresAt.toISOString())
+    await this.db
+      .insert(schema.noncesTable)
+      .values({
+        nonce,
+        expiresAt: expiresAt.toISOString(),
+        usedAt: null,
+      })
+      .onConflictDoUpdate({
+        target: schema.noncesTable.nonce,
+        set: {
+          expiresAt: expiresAt.toISOString(),
+          usedAt: null,
+        },
+      })
       .run();
   }
 
   async validateNonce(nonce: string): Promise<boolean> {
     this.logger.debug({ nonce }, 'validating nonce');
 
-    const result = await this.database
-      .prepare(
-        'UPDATE lti_tool_nonces SET used_at = ? WHERE nonce = ? AND used_at IS NULL AND expires_at > ?',
+    const now = new Date().toISOString();
+    const result = await this.db
+      .update(schema.noncesTable)
+      .set({ usedAt: now })
+      .where(
+        and(
+          eq(schema.noncesTable.nonce, nonce),
+          isNull(schema.noncesTable.usedAt),
+          gt(schema.noncesTable.expiresAt, now),
+        ),
       )
-      .bind(new Date().toISOString(), nonce, new Date().toISOString())
       .run();
 
-    return (result.meta?.changes ?? 0) === 1;
+    return getChangedRows(result) === 1;
   }
 
   async getLaunchConfig(
@@ -348,11 +327,20 @@ export class D1Storage implements LTIStorage {
   ): Promise<void> {
     this.logger.debug({ sessionId }, 'setting registration session');
 
-    await this.database
-      .prepare(
-        'INSERT OR REPLACE INTO lti_tool_registration_sessions (id, data, expires_at) VALUES (?, ?, ?)',
-      )
-      .bind(sessionId, JSON.stringify(session), new Date(session.expiresAt).toISOString())
+    await this.db
+      .insert(schema.registrationSessionsTable)
+      .values({
+        id: sessionId,
+        data: session,
+        expiresAt: new Date(session.expiresAt).toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: schema.registrationSessionsTable.id,
+        set: {
+          data: session,
+          expiresAt: new Date(session.expiresAt).toISOString(),
+        },
+      })
       .run();
   }
 
@@ -361,22 +349,26 @@ export class D1Storage implements LTIStorage {
   ): Promise<LTIDynamicRegistrationSession | undefined> {
     this.logger.debug({ sessionId }, 'getting registration session');
 
-    const row = await this.database
-      .prepare(
-        'SELECT id, data, expires_at FROM lti_tool_registration_sessions WHERE id = ? AND expires_at > ?',
+    const [session] = await this.db
+      .select()
+      .from(schema.registrationSessionsTable)
+      .where(
+        and(
+          eq(schema.registrationSessionsTable.id, sessionId),
+          gt(schema.registrationSessionsTable.expiresAt, new Date().toISOString()),
+        ),
       )
-      .bind(sessionId, new Date().toISOString())
-      .first<RegistrationSessionRow>();
+      .limit(1);
 
-    return row ? (JSON.parse(row.data) as LTIDynamicRegistrationSession) : undefined;
+    return session?.data;
   }
 
   async deleteRegistrationSession(sessionId: string): Promise<void> {
     this.logger.debug({ sessionId }, 'deleting registration session');
 
-    await this.database
-      .prepare('DELETE FROM lti_tool_registration_sessions WHERE id = ?')
-      .bind(sessionId)
+    await this.db
+      .delete(schema.registrationSessionsTable)
+      .where(eq(schema.registrationSessionsTable.id, sessionId))
       .run();
   }
 
@@ -388,23 +380,23 @@ export class D1Storage implements LTIStorage {
     this.logger.info('starting cleanup of expired items');
 
     const now = new Date().toISOString();
-    const nonces = await this.database
-      .prepare('DELETE FROM lti_tool_nonces WHERE expires_at <= ?')
-      .bind(now)
+    const nonces = await this.db
+      .delete(schema.noncesTable)
+      .where(lte(schema.noncesTable.expiresAt, now))
       .run();
-    const sessions = await this.database
-      .prepare('DELETE FROM lti_tool_sessions WHERE expires_at <= ?')
-      .bind(now)
+    const sessions = await this.db
+      .delete(schema.sessionsTable)
+      .where(lte(schema.sessionsTable.expiresAt, now))
       .run();
-    const registrationSessions = await this.database
-      .prepare('DELETE FROM lti_tool_registration_sessions WHERE expires_at <= ?')
-      .bind(now)
+    const registrationSessions = await this.db
+      .delete(schema.registrationSessionsTable)
+      .where(lte(schema.registrationSessionsTable.expiresAt, now))
       .run();
 
     return {
-      noncesDeleted: nonces.meta?.changes ?? 0,
-      sessionsDeleted: sessions.meta?.changes ?? 0,
-      registrationSessionsDeleted: registrationSessions.meta?.changes ?? 0,
+      noncesDeleted: getChangedRows(nonces),
+      sessionsDeleted: getChangedRows(sessions),
+      registrationSessionsDeleted: getChangedRows(registrationSessions),
     };
   }
 
@@ -413,63 +405,42 @@ export class D1Storage implements LTIStorage {
     clientId: string,
     platformDeploymentId: string,
   ): Promise<LTILaunchConfig | undefined> {
-    const row = await this.database
-      .prepare(
-        `SELECT
-          clients.iss,
-          clients.client_id,
-          clients.auth_url,
-          clients.token_url,
-          clients.jwks_url,
-          deployments.deployment_id
-        FROM lti_tool_clients clients
-        INNER JOIN lti_tool_deployments deployments
-          ON deployments.client_id = clients.id
-        WHERE clients.iss = ?
-          AND clients.client_id = ?
-          AND deployments.deployment_id = ?
-        LIMIT 1`,
+    const [row] = await this.db
+      .select({
+        iss: schema.clientsTable.iss,
+        clientId: schema.clientsTable.clientId,
+        authUrl: schema.clientsTable.authUrl,
+        tokenUrl: schema.clientsTable.tokenUrl,
+        jwksUrl: schema.clientsTable.jwksUrl,
+        deploymentId: schema.deploymentsTable.deploymentId,
+      })
+      .from(schema.clientsTable)
+      .innerJoin(
+        schema.deploymentsTable,
+        eq(schema.deploymentsTable.clientId, schema.clientsTable.id),
       )
-      .bind(iss, clientId, platformDeploymentId)
-      .first<{
-        iss: string;
-        client_id: string;
-        auth_url: string;
-        token_url: string;
-        jwks_url: string;
-        deployment_id: string;
-      }>();
+      .where(
+        and(
+          eq(schema.clientsTable.iss, iss),
+          eq(schema.clientsTable.clientId, clientId),
+          eq(schema.deploymentsTable.deploymentId, platformDeploymentId),
+        ),
+      )
+      .limit(1);
 
-    return row
-      ? {
-          iss: row.iss,
-          clientId: row.client_id,
-          deploymentId: row.deployment_id,
-          authUrl: row.auth_url,
-          tokenUrl: row.token_url,
-          jwksUrl: row.jwks_url,
-        }
-      : undefined;
+    return row;
   }
-}
-
-function mapClientRow(row: ClientRow): Omit<LTIClient, 'deployments'> {
-  return {
-    id: row.id,
-    name: row.name,
-    iss: row.iss,
-    clientId: row.client_id,
-    authUrl: row.auth_url,
-    tokenUrl: row.token_url,
-    jwksUrl: row.jwks_url,
-  };
 }
 
 function mapDeploymentRow(row: DeploymentRow): LTIDeployment {
   return {
     id: row.id,
-    deploymentId: row.deployment_id,
+    deploymentId: row.deploymentId,
     name: row.name ?? undefined,
     description: row.description ?? undefined,
   };
+}
+
+function getChangedRows(result: { meta?: { changes?: number } }): number {
+  return result.meta?.changes ?? 0;
 }

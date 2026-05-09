@@ -1,5 +1,5 @@
 // oxlint-disable max-lines-per-function
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,8 +10,9 @@ import type {
   LTISession,
 } from '@lti-tool/core';
 import { Log, LogLevel, Miniflare } from 'miniflare';
-import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { D1Storage } from '../src/index.js';
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(testDirectory, '..');
@@ -206,7 +207,7 @@ describe('D1Storage with Miniflare D1', () => {
 
       await expect(
         harness.storage('addDeployment', clientInternalId, testDeployment),
-      ).rejects.toThrow('UNIQUE constraint failed');
+      ).rejects.toThrow('Failed query');
     });
 
     it('throws when updating a missing deployment', async () => {
@@ -388,33 +389,22 @@ describe('D1Storage with Miniflare D1', () => {
 class D1StorageHarness {
   private constructor(
     private mf: Miniflare,
-    private tempDirectory: string,
+    private database: Awaited<ReturnType<Miniflare['getD1Database']>>,
+    private storageAdapter: D1Storage,
   ) {}
 
   static async create(): Promise<D1StorageHarness> {
-    const tempDirectory = await mkdtemp(join(packageRoot, '.d1-storage-test-'));
-    const source = await readFile(resolve(packageRoot, 'src/d1Storage.ts'), 'utf8');
-    const transpiled = ts.transpileModule(source, {
-      compilerOptions: {
-        module: ts.ModuleKind.ES2022,
-        target: ts.ScriptTarget.ES2022,
-      },
-    }).outputText;
-
-    await writeFile(join(tempDirectory, 'd1Storage.js'), transpiled);
-    await writeFile(join(tempDirectory, 'worker.mjs'), workerSource());
-
     const mf = new Miniflare({
       modules: true,
-      modulesRules: [{ type: 'ESModule', include: ['**/*.js', '**/*.mjs'] }],
-      scriptPath: join(tempDirectory, 'worker.mjs'),
+      script: 'export default { fetch() { return new Response("ok"); } }',
       compatibilityDate: '2026-05-07',
       d1Databases: { DB: 'test-db' },
       log: new Log(LogLevel.WARN),
     });
-    const harness = new D1StorageHarness(mf, tempDirectory);
+    const database = await mf.getD1Database('DB');
+    const harness = new D1StorageHarness(mf, database, new D1Storage({ database }));
     try {
-      await harness.applySchema();
+      await harness.applyMigrations();
       return harness;
     } catch (error) {
       await harness.dispose();
@@ -422,8 +412,16 @@ class D1StorageHarness {
     }
   }
 
-  storage<T = unknown>(method: string, ...args: unknown[]): Promise<T> {
-    return this.request<T>({ kind: 'storage', method, args });
+  async storage<T = unknown>(method: string, ...args: unknown[]): Promise<T> {
+    const storageMethod = (
+      this.storageAdapter as unknown as Record<
+        string,
+        (...methodArgs: unknown[]) => Promise<unknown>
+      >
+    )[method];
+
+    const result = await storageMethod.apply(this.storageAdapter, reviveArgs(args));
+    return (result ?? null) as T;
   }
 
   sql<T = unknown>(
@@ -431,100 +429,51 @@ class D1StorageHarness {
     sql: string,
     params: unknown[] = [],
   ): Promise<T> {
-    return this.request<T>({ kind: 'sql', mode, sql, params });
+    if (mode === 'exec') {
+      return this.database.exec(sql) as Promise<T>;
+    }
+
+    const statement = this.database.prepare(sql).bind(...params);
+    if (mode === 'first') {
+      return statement.first() as Promise<T>;
+    }
+    return statement.run() as Promise<T>;
   }
 
   async dispose(): Promise<void> {
     await this.mf.dispose();
-    await rm(this.tempDirectory, { force: true, recursive: true });
   }
 
-  private async applySchema(): Promise<void> {
-    const schema = await readFile(resolve(packageRoot, 'schema.sql'), 'utf8');
-    const statements = schema
-      .split(';')
-      .map((statement) => statement.trim())
-      .filter(Boolean);
+  private async applyMigrations(): Promise<void> {
+    const migrationsDirectory = resolve(packageRoot, 'drizzle');
+    const migrationFileNames = (await readdir(migrationsDirectory))
+      .filter((fileName) => fileName.endsWith('.sql'))
+      .sort();
 
-    for (const statement of statements) {
-      await this.sql('run', statement);
-    }
-  }
+    for (const fileName of migrationFileNames) {
+      const migration = await readFile(join(migrationsDirectory, fileName), 'utf8');
+      const statements = migration
+        .split('--> statement-breakpoint')
+        .map((statement) => statement.trim())
+        .filter(Boolean);
 
-  private async request<T>(body: Record<string, unknown>): Promise<T> {
-    const response = await this.mf.dispatchFetch('http://d1-storage.test/query', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    const responseBody = (await response.json()) as { result?: T; error?: string };
-    if (!response.ok) {
-      throw new Error(responseBody.error ?? 'Miniflare D1 request failed');
-    }
-    return responseBody.result as T;
-  }
-}
-
-function workerSource(): string {
-  return `import { D1Storage } from './d1Storage.js';
-
-export default {
-  async fetch(request, env) {
-    const body = await request.json();
-
-    try {
-      if (body.kind === 'sql') {
-        const result = await executeSql(env.DB, body);
-        return json({ result });
+      for (const statement of statements) {
+        await this.sql('run', statement);
       }
-
-      const storage = new D1Storage({ database: env.DB });
-      const args = reviveArgs(body.args ?? []);
-      const result = await storage[body.method](...args);
-      return json({ result: result ?? null });
-    } catch (error) {
-      return json(
-        { error: error instanceof Error ? error.message : String(error) },
-        500,
-      );
     }
-  },
-};
-
-async function executeSql(database, body) {
-  if (body.mode === 'exec') {
-    return database.exec(body.sql);
   }
-
-  const statement = database.prepare(body.sql).bind(...(body.params ?? []));
-  if (body.mode === 'first') {
-    return statement.first();
-  }
-  if (body.mode === 'run') {
-    return statement.run();
-  }
-
-  throw new Error('Unsupported SQL mode');
 }
 
-function reviveArgs(args) {
+function reviveArgs(args: unknown[]): unknown[] {
   return args.map((arg) => {
     if (
       typeof arg === 'string' &&
-      /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(arg)
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(arg)
     ) {
       return new Date(arg);
     }
     return arg;
   });
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
-}
-`;
 }
 
 function futureIso(): string {

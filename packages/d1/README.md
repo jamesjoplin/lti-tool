@@ -10,7 +10,8 @@ npm install @lti-tool/d1
 
 ## Usage
 
-Apply `schema.sql` to your D1 database, then pass the binding to `D1Storage`.
+Apply the Drizzle migrations in `drizzle/` to your D1 database, then pass the
+binding to `D1Storage`.
 
 ```typescript
 import { LTITool } from '@lti-tool/core';
