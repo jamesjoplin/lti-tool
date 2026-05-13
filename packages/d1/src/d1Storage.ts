@@ -10,6 +10,7 @@ import { and, eq, gt, isNull, lte } from 'drizzle-orm';
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
 import type { Logger } from 'pino';
 
+import { SESSION_TTL } from './cacheConfig.js';
 import * as schema from './db/schema/index.js';
 import type { D1StorageConfig } from './interfaces/d1StorageConfig.js';
 
@@ -20,6 +21,9 @@ type DeploymentRow = typeof schema.deploymentsTable.$inferSelect;
  *
  * Stores clients, deployments, sessions, and nonces in D1.
  * Uses Drizzle ORM for type-safe database operations.
+ * NOTE: No in-process cache: Workers isolates can't share state,
+ * and stale launch configs after admin updates would not be evictable
+ * across the edge fleet. D1 handles read caching itself.
  */
 export class D1Storage implements LTIStorage {
   private logger: Logger;
@@ -98,16 +102,11 @@ export class D1Storage implements LTIStorage {
       ...client,
     };
 
+    const { deployments: _clientDeployments, ...clientWithoutDeployments } = updated;
+
     await this.db
       .update(schema.clientsTable)
-      .set({
-        name: updated.name,
-        iss: updated.iss,
-        clientId: updated.clientId,
-        authUrl: updated.authUrl,
-        tokenUrl: updated.tokenUrl,
-        jwksUrl: updated.jwksUrl,
-      })
+      .set(clientWithoutDeployments)
       .where(eq(schema.clientsTable.id, clientId))
       .run();
   }
@@ -251,8 +250,8 @@ export class D1Storage implements LTIStorage {
   async addSession(session: LTISession): Promise<string> {
     this.logger.debug({ sessionId: session.id }, 'adding session');
 
+    const expiresAt = new Date(Date.now() + SESSION_TTL * 1000).toISOString();
     const { id, ...data } = session;
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     await this.db.insert(schema.sessionsTable).values({ id, data, expiresAt }).run();
 
