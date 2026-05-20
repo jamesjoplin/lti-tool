@@ -344,7 +344,6 @@ export class LTITool {
    * Submits a grade score to the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
-   * @param options - Optional line item target override
    * @param score - Score submission data including grade value and user ID
    * @throws {Error} When AGS is not available or submission fails
    */
