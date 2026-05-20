@@ -10,7 +10,6 @@
     "docs:build": "typedoc",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
-    "lint:oxlint": "oxlint .",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt --write .",
     "type-check": "tsc --noEmit",
