@@ -36,8 +36,11 @@ docker compose -f packages/postgresql/docker-compose.yml down -v
 # Lint code
 npm run lint
 
-# Format code
+# Check formatting
 npm run format
+
+# Apply formatting
+npm run format:fix
 ```
 
 ## Pull Requests
@@ -55,7 +58,7 @@ npm run format
 
 ## Code Style
 
-We use Prettier and oxlint (with ESLint still covering a few rules). Run `npm run format` and `npm run lint` before submitting.
+We use oxlint for linting and oxfmt for formatting. Run `npm run format` and `npm run lint` before submitting.
 
 ## Questions?
 
