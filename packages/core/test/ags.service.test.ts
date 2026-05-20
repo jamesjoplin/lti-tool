@@ -268,6 +268,28 @@ describe('AGSService', () => {
         }),
       );
     });
+
+    it('retrieves filtered results while preserving line item URL query parameters', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await agsService.getScores(mockSession, {
+        lineItemUrl: 'https://platform.example.com/api/ags/lineitems/456?existing=1',
+        userId: 'learner-1',
+        limit: 25,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://platform.example.com/api/ags/lineitems/456/results?existing=1&user_id=learner-1&limit=25',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+    });
   });
 
   describe('listLineItems', () => {

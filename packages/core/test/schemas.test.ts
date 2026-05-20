@@ -65,6 +65,32 @@ describe('Schema Validation Tests', () => {
   });
 
   describe('AGS extension fields', () => {
+    it('accepts standard AGS line item fields added by platforms', () => {
+      const parsed = LineItemSchema.parse({
+        id: 'https://platform.example.com/ags/lineitems/123',
+        scoreMaximum: 100,
+        label: 'Midterm',
+        gradesReleased: true,
+      });
+
+      expect(parsed.gradesReleased).toBe(true);
+    });
+
+    it('accepts standard AGS result fields and empty result values', () => {
+      const parsed = ResultSchema.parse({
+        id: 'result-1',
+        scoreOf: 'https://platform.example.com/ags/lineitems/123',
+        userId: 'learner-1',
+        resultScore: null,
+        scoringUserId: 'instructor-1',
+        comment: null,
+      });
+
+      expect(parsed.resultScore).toBeNull();
+      expect(parsed.scoringUserId).toBe('instructor-1');
+      expect(parsed.comment).toBeNull();
+    });
+
     it('preserves platform-specific line item extension properties', () => {
       const sakaiReadOnlyProperty = 'https://www.sakailms.org/spec/lti-ags/v2p0/readOnly';
 

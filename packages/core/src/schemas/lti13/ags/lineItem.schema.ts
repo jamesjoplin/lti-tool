@@ -30,6 +30,9 @@ export const LineItemSchema = z.looseObject({
 
   /** Optional end date/time for the assignment */
   endDateTime: z.iso.datetime().optional(),
+
+  /** Whether grades should be released to learners. */
+  gradesReleased: z.boolean().optional(),
 });
 
 /**

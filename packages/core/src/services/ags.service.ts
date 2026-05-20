@@ -17,6 +17,13 @@ export interface AGSLineItemTargetOptions {
   lineItemUrl?: string;
 }
 
+export interface AGSGetScoresOptions extends AGSLineItemTargetOptions {
+  /** Optional AGS user_id filter for fetching a single user's result. */
+  userId?: string;
+  /** Optional maximum number of results to request. */
+  limit?: number;
+}
+
 export interface AGSListLineItemsOptions {
   /** Optional AGS resource_id filter. */
   resourceId?: string;
@@ -105,7 +112,7 @@ export class AGSService {
    * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services.
    *
    * @param session - Active LTI session containing AGS line item endpoint configuration
-   * @param options - Optional line item target override
+   * @param options - Optional line item target override and AGS result filters
    * @returns Promise resolving to the HTTP response containing scores data for the line item
    * @throws {Error} When AGS line item service is not available for the session or request fails
    *
@@ -118,7 +125,7 @@ export class AGSService {
    */
   async getScores(
     session: LTISession,
-    options: AGSLineItemTargetOptions = {},
+    options: AGSGetScoresOptions = {},
   ): Promise<Response> {
     const lineItemUrl = options.lineItemUrl ?? session.services?.ags?.lineitem;
 
@@ -131,9 +138,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
     );
 
-    const resultsEndpoint = `${lineItemUrl}/results`;
-
-    const response = await ltiServiceFetch(resultsEndpoint, {
+    const response = await ltiServiceFetch(this.buildResultsUrl(lineItemUrl, options), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -383,6 +388,20 @@ export class AGSService {
     }
     if (options.tag !== undefined) {
       url.searchParams.set('tag', options.tag);
+    }
+    if (options.limit !== undefined) {
+      url.searchParams.set('limit', String(options.limit));
+    }
+
+    return url.toString();
+  }
+
+  private buildResultsUrl(lineItemUrl: string, options: AGSGetScoresOptions): string {
+    const url = new URL(lineItemUrl);
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/results`;
+
+    if (options.userId !== undefined) {
+      url.searchParams.set('user_id', options.userId);
     }
     if (options.limit !== undefined) {
       url.searchParams.set('limit', String(options.limit));

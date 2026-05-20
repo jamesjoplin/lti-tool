@@ -10,20 +10,23 @@ export const ResultSchema = z.looseObject({
   /** Unique identifier for the result */
   id: z.string(),
 
-  /** Score of the result, represented as a URL */
+  /** URL identifying the line item to which this result belongs. */
   scoreOf: z.url(),
 
-  /** URL identifying the Line Item to which this result belongs. */
+  /** LTI user ID identifying the recipient of the result. */
   userId: z.string(),
 
   /** The score given to the user */
-  resultScore: z.number().optional(),
+  resultScore: z.number().nullable().optional(),
 
   /** Maximum possible score */
   resultMaximum: z.number().optional(),
 
+  /** LTI user ID identifying the provider of the result, usually an instructor. */
+  scoringUserId: z.string().optional(),
+
   /** Comment associated with the result */
-  comment: z.string().optional(),
+  comment: z.string().nullable().optional(),
 
   /** Timestamp when the result was recorded */
   timestamp: z.iso.datetime({ offset: true }).optional(),

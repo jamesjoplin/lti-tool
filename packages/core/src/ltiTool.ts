@@ -35,6 +35,7 @@ import {
 } from './schemas/lti13/nrps/contextMembership.schema.js';
 import {
   AGSService,
+  type AGSGetScoresOptions,
   type AGSLineItemTargetOptions,
   type AGSListLineItemsOptions,
 } from './services/ags.service.js';
@@ -368,7 +369,7 @@ export class LTITool {
    * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
-   * @param options - Optional AGS line item list filters
+   * @param options - Optional line item target override and AGS result filters
    * @returns Array of score submissions for the line item
    * @throws {Error} When AGS is not available or request fails
    *
@@ -380,7 +381,7 @@ export class LTITool {
    */
   async getScores(
     session: LTISession,
-    options: AGSLineItemTargetOptions = {},
+    options: AGSGetScoresOptions = {},
   ): Promise<Results> {
     if (!session) {
       throw new Error('session is required');
@@ -401,7 +402,7 @@ export class LTITool {
    * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
-   * @param options - Optional line item target override
+   * @param options - Optional AGS line item list filters
    * @returns Array of line items from the platform
    * @throws {Error} When AGS is not available or request fails
    */
