@@ -9,6 +9,8 @@ import {
   SessionIdSchema,
   VerifyLaunchParamsSchema,
 } from '../src/schemas/index.js';
+import { LineItemSchema } from '../src/schemas/lti13/ags/lineItem.schema.js';
+import { ResultSchema } from '../src/schemas/lti13/ags/result.schema.js';
 import { ScoreSubmissionSchema } from '../src/schemas/lti13/ags/scoreSubmission.schema.js';
 import { NRPSContextMembershipResponseSchema } from '../src/schemas/lti13/nrps/contextMembership.schema.js';
 
@@ -59,6 +61,36 @@ describe('Schema Validation Tests', () => {
       };
 
       expect(() => LTI13LoginSchema.parse(incompleteLogin)).toThrow();
+    });
+  });
+
+  describe('AGS extension fields', () => {
+    it('preserves platform-specific line item extension properties', () => {
+      const sakaiReadOnlyProperty = 'https://www.sakailms.org/spec/lti-ags/v2p0/readOnly';
+
+      const parsed = LineItemSchema.parse({
+        id: 'https://platform.example.com/ags/lineitems/123',
+        scoreMaximum: 100,
+        label: 'Midterm',
+        [sakaiReadOnlyProperty]: true,
+      });
+
+      expect(parsed[sakaiReadOnlyProperty]).toBe(true);
+    });
+
+    it('preserves platform-specific result extension properties', () => {
+      const platformExtensionProperty =
+        'https://platform.example.com/spec/lti-ags/resultStatus';
+
+      const parsed = ResultSchema.parse({
+        id: 'result-1',
+        scoreOf: 'https://platform.example.com/ags/lineitems/123',
+        userId: 'learner-1',
+        resultScore: 95,
+        [platformExtensionProperty]: 'released',
+      });
+
+      expect(parsed[platformExtensionProperty]).toBe('released');
     });
   });
 

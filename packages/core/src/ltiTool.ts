@@ -33,7 +33,11 @@ import {
   type Member,
   NRPSContextMembershipResponseSchema,
 } from './schemas/lti13/nrps/contextMembership.schema.js';
-import { AGSService } from './services/ags.service.js';
+import {
+  AGSService,
+  type AGSLineItemTargetOptions,
+  type AGSListLineItemsOptions,
+} from './services/ags.service.js';
 import { DeepLinkingService } from './services/deepLinking.service.js';
 import { DynamicRegistrationService } from './services/dynamicRegistration.service.js';
 import { NRPSService } from './services/nrps.service.js';
@@ -339,6 +343,7 @@ export class LTITool {
    * Submits a grade score to the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
+   * @param options - Optional line item target override
    * @param score - Score submission data including grade value and user ID
    * @throws {Error} When AGS is not available or submission fails
    */
@@ -363,6 +368,7 @@ export class LTITool {
    * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
+   * @param options - Optional AGS line item list filters
    * @returns Array of score submissions for the line item
    * @throws {Error} When AGS is not available or request fails
    *
@@ -372,13 +378,16 @@ export class LTITool {
    * console.log('All scores:', scores.map(s => `${s.userId}: ${s.scoreGiven}`));
    * ```
    */
-  async getScores(session: LTISession): Promise<Results> {
+  async getScores(
+    session: LTISession,
+    options: AGSLineItemTargetOptions = {},
+  ): Promise<Results> {
     if (!session) {
       throw new Error('session is required');
     }
 
     try {
-      const response = await this.agsService.getScores(session);
+      const response = await this.agsService.getScores(session, options);
       const data = await response.json();
       return ResultsSchema.parse(data);
     } catch (error) {
@@ -392,16 +401,20 @@ export class LTITool {
    * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services (AGS).
    *
    * @param session - Active LTI session containing AGS service endpoints
+   * @param options - Optional line item target override
    * @returns Array of line items from the platform
    * @throws {Error} When AGS is not available or request fails
    */
-  async listLineItems(session: LTISession): Promise<LineItems> {
+  async listLineItems(
+    session: LTISession,
+    options: AGSListLineItemsOptions = {},
+  ): Promise<LineItems> {
     if (!session) {
       throw new Error('session is required');
     }
 
     try {
-      const response = await this.agsService.listLineItems(session);
+      const response = await this.agsService.listLineItems(session, options);
       const data = await response.json();
       return LineItemsSchema.parse(data);
     } catch (error) {
@@ -418,13 +431,16 @@ export class LTITool {
    * @returns Line item data from the platform
    * @throws {Error} When AGS is not available or request fails
    */
-  async getLineItem(session: LTISession): Promise<LineItem> {
+  async getLineItem(
+    session: LTISession,
+    options: AGSLineItemTargetOptions = {},
+  ): Promise<LineItem> {
     if (!session) {
       throw new Error('session is required');
     }
 
     try {
-      const response = await this.agsService.getLineItem(session);
+      const response = await this.agsService.getLineItem(session, options);
       const data = await response.json();
       return LineItemSchema.parse(data);
     } catch (error) {

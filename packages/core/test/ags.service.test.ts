@@ -218,4 +218,117 @@ describe('AGSService', () => {
       );
     });
   });
+
+  describe('getScores', () => {
+    beforeEach(() => {
+      mockGetValidLaunchConfig.mockResolvedValue(mockLaunchConfig);
+      mockTokenService.getBearerToken.mockResolvedValue('mock-bearer-token');
+    });
+
+    it('retrieves results from the session line item by default', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await agsService.getScores(mockSession);
+
+      expect(result).toBe(mockResponse);
+      expect(mockTokenService.getBearerToken).toHaveBeenCalledWith(
+        'client123',
+        'https://platform.example.com/token',
+        'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://platform.example.com/api/ags/lineitem/123/results',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+    });
+
+    it('retrieves results from a caller-provided line item URL', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await agsService.getScores(mockSession, {
+        lineItemUrl: 'https://platform.example.com/api/ags/lineitems/456',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://platform.example.com/api/ags/lineitems/456/results',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+    });
+  });
+
+  describe('listLineItems', () => {
+    beforeEach(() => {
+      mockGetValidLaunchConfig.mockResolvedValue(mockLaunchConfig);
+      mockTokenService.getBearerToken.mockResolvedValue('mock-bearer-token');
+    });
+
+    it('lists line items with optional AGS filters', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await agsService.listLineItems(mockSession, {
+        resourceId: 'resource-1',
+        resourceLinkId: 'resource-link-1',
+        tag: 'badges',
+        limit: 50,
+      });
+
+      expect(mockTokenService.getBearerToken).toHaveBeenCalledWith(
+        'client123',
+        'https://platform.example.com/token',
+        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://platform.example.com/api/ags/lineitems?resource_id=resource-1&resource_link_id=resource-link-1&tag=badges&limit=50',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+    });
+  });
+
+  describe('getLineItem', () => {
+    beforeEach(() => {
+      mockGetValidLaunchConfig.mockResolvedValue(mockLaunchConfig);
+      mockTokenService.getBearerToken.mockResolvedValue('mock-bearer-token');
+    });
+
+    it('retrieves a caller-provided line item URL', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await agsService.getLineItem(mockSession, {
+        lineItemUrl: 'https://platform.example.com/api/ags/lineitems/456',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://platform.example.com/api/ags/lineitems/456',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+    });
+  });
 });

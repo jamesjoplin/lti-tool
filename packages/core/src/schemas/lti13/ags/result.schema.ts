@@ -6,7 +6,7 @@ import * as z from 'zod';
  *
  * @see https://www.imsglobal.org/spec/lti-ags/v2p0/#result-service
  */
-export const ResultSchema = z.object({
+export const ResultSchema = z.looseObject({
   /** Unique identifier for the result */
   id: z.string(),
 
