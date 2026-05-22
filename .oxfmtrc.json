@@ -1,0 +1,15 @@
+{
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "printWidth": 90,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "sortPackageJson": false,
+  "sortImports": {
+    "ignoreCase": true,
+    "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"]
+  }
+}
