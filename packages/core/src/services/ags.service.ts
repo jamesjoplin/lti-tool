@@ -12,6 +12,29 @@ import { ltiServiceFetch } from '../utils/ltiServiceFetch.js';
 
 import type { TokenService } from './token.service.js';
 
+export interface AGSLineItemTargetOptions {
+  /** Optional line item URL to read instead of the launch session's default line item. */
+  lineItemUrl?: string;
+}
+
+export interface AGSGetScoresOptions extends AGSLineItemTargetOptions {
+  /** Optional AGS user_id filter for fetching a single user's result. */
+  userId?: string;
+  /** Optional maximum number of results to request. */
+  limit?: number;
+}
+
+export interface AGSListLineItemsOptions {
+  /** Optional AGS resource_id filter. */
+  resourceId?: string;
+  /** Optional AGS resource_link_id filter. */
+  resourceLinkId?: string;
+  /** Optional AGS tag filter. */
+  tag?: string;
+  /** Optional maximum number of line items to request. */
+  limit?: number;
+}
+
 /**
  * Assignment and Grade Services (AGS) implementation for LTI 1.3.
  * Provides methods to submit grades and scores back to the platform.
@@ -89,6 +112,7 @@ export class AGSService {
    * Retrieves all scores for a specific line item from the platform using Assignment and Grade Services.
    *
    * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @param options - Optional line item target override and AGS result filters
    * @returns Promise resolving to the HTTP response containing scores data for the line item
    * @throws {Error} When AGS line item service is not available for the session or request fails
    *
@@ -99,8 +123,13 @@ export class AGSService {
    * console.log('All scores for this line item:', scores);
    * ```
    */
-  async getScores(session: LTISession): Promise<Response> {
-    if (!session.services?.ags?.lineitem) {
+  async getScores(
+    session: LTISession,
+    options: AGSGetScoresOptions = {},
+  ): Promise<Response> {
+    const lineItemUrl = options.lineItemUrl ?? session.services?.ags?.lineitem;
+
+    if (!lineItemUrl) {
       throw new Error('AGS line item not available for this session');
     }
 
@@ -109,9 +138,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
     );
 
-    const resultsEndpoint = `${session.services.ags.lineitem}/results`;
-
-    const response = await ltiServiceFetch(resultsEndpoint, {
+    const response = await ltiServiceFetch(this.buildResultsUrl(lineItemUrl, options), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -127,6 +154,7 @@ export class AGSService {
    * Retrieves line items (gradebook columns) from the platform using Assignment and Grade Services.
    *
    * @param session - Active LTI session containing AGS line items endpoint configuration
+   * @param options - Optional AGS line item list filters
    * @returns Promise resolving to the HTTP response containing line items data
    * @throws {Error} When AGS line items service is not available for the session or request fails
    *
@@ -137,7 +165,10 @@ export class AGSService {
    * console.log('Available gradebook columns:', lineItems);
    * ```
    */
-  async listLineItems(session: LTISession): Promise<Response> {
+  async listLineItems(
+    session: LTISession,
+    options: AGSListLineItemsOptions = {},
+  ): Promise<Response> {
     if (!session.services?.ags?.lineitems) {
       throw new Error('AGS list line items not available for this session');
     }
@@ -147,13 +178,16 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
-    const response = await ltiServiceFetch(`${session.services.ags.lineitems}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.ims.lis.v2.lineitemcontainer+json',
+    const response = await ltiServiceFetch(
+      this.buildLineItemsUrl(session.services.ags.lineitems, options),
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.ims.lis.v2.lineitemcontainer+json',
+        },
       },
-    });
+    );
 
     await this.validateAGSResponse(response, 'list line items');
     return response;
@@ -163,6 +197,7 @@ export class AGSService {
    * Retrieves a specific line item (gradebook column) from the platform using Assignment and Grade Services.
    *
    * @param session - Active LTI session containing AGS line item endpoint configuration
+   * @param options - Optional line item target override
    * @returns Promise resolving to the HTTP response containing the line item data
    * @throws {Error} When AGS line item service is not available for the session or request fails
    *
@@ -173,8 +208,13 @@ export class AGSService {
    * console.log('Line item details:', lineItem);
    * ```
    */
-  async getLineItem(session: LTISession): Promise<Response> {
-    if (!session.services?.ags?.lineitem) {
+  async getLineItem(
+    session: LTISession,
+    options: AGSLineItemTargetOptions = {},
+  ): Promise<Response> {
+    const lineItemUrl = options.lineItemUrl ?? session.services?.ags?.lineitem;
+
+    if (!lineItemUrl) {
       throw new Error('AGS line item not available for this session');
     }
 
@@ -183,7 +223,7 @@ export class AGSService {
       'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
     );
 
-    const response = await ltiServiceFetch(`${session.services.ags.lineitem}`, {
+    const response = await ltiServiceFetch(lineItemUrl, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -332,6 +372,42 @@ export class AGSService {
       launchConfig.tokenUrl,
       scope,
     );
+  }
+
+  private buildLineItemsUrl(
+    lineItemsUrl: string,
+    options: AGSListLineItemsOptions,
+  ): string {
+    const url = new URL(lineItemsUrl);
+
+    if (options.resourceId !== undefined) {
+      url.searchParams.set('resource_id', options.resourceId);
+    }
+    if (options.resourceLinkId !== undefined) {
+      url.searchParams.set('resource_link_id', options.resourceLinkId);
+    }
+    if (options.tag !== undefined) {
+      url.searchParams.set('tag', options.tag);
+    }
+    if (options.limit !== undefined) {
+      url.searchParams.set('limit', String(options.limit));
+    }
+
+    return url.toString();
+  }
+
+  private buildResultsUrl(lineItemUrl: string, options: AGSGetScoresOptions): string {
+    const url = new URL(lineItemUrl);
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/results`;
+
+    if (options.userId !== undefined) {
+      url.searchParams.set('user_id', options.userId);
+    }
+    if (options.limit !== undefined) {
+      url.searchParams.set('limit', String(options.limit));
+    }
+
+    return url.toString();
   }
 
   private async validateAGSResponse(

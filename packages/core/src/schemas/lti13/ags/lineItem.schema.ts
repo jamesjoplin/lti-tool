@@ -6,7 +6,7 @@ import * as z from 'zod';
  *
  * @see https://www.imsglobal.org/spec/lti-ags/v2p0/#line-item-service
  */
-export const LineItemSchema = z.object({
+export const LineItemSchema = z.looseObject({
   /** Unique identifier for the line item */
   id: z.url(),
 
@@ -30,6 +30,9 @@ export const LineItemSchema = z.object({
 
   /** Optional end date/time for the assignment */
   endDateTime: z.iso.datetime().optional(),
+
+  /** Whether grades should be released to learners. */
+  gradesReleased: z.boolean().optional(),
 });
 
 /**
