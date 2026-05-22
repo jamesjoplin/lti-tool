@@ -29,6 +29,7 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+.claude/
 
 # coverage
 coverage/
