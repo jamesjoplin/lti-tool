@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.1.1
+
+### Patch Changes
+
+- 164dc9d: Preserve AGS platform extension fields, support standard result filters and schema fields, and allow callers to read specific line item results and details.
+
 ## 1.1.0
 
 ### Minor Changes
