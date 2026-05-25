@@ -1,4 +1,4 @@
-import type { OpenIDConfiguration } from '../schemas/lti13/dynamicRegistration/openIDConfiguration.schema';
+import type { OpenIDConfiguration } from '../schemas/lti13/dynamicRegistration/openIDConfiguration.schema.js';
 
 /**
  * Temporary session data stored during LTI 1.3 dynamic registration flow.

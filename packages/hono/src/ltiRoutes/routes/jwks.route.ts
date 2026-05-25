@@ -1,7 +1,7 @@
 import { type LTIConfig } from '@lti-tool/core';
 import { type Handler } from 'hono';
 
-import { getLTITool } from '../../ltiTool';
+import { getLTITool } from '../../ltiTool.js';
 
 /**
  * Creates a route handler for JWKS requests.

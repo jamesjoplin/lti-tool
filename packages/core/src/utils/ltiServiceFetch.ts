@@ -1,4 +1,4 @@
-import * as packageJson from '../../package.json';
+import packageJson from '../../package.json' with { type: 'json' };
 
 /**
  * Wrapper around fetch() that automatically adds User-Agent header for LTI service requests.

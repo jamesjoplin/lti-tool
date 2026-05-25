@@ -1,6 +1,6 @@
 import type { LTIClient } from '@lti-tool/core';
 
-import type { DynamoBase } from './dynamoBase';
+import type { DynamoBase } from './dynamoBase.js';
 
 export interface DynamoLTIClient extends LTIClient, DynamoBase {
   type: 'Client';

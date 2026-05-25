@@ -5,7 +5,7 @@ import {
 } from '@lti-tool/core';
 import { type Handler } from 'hono';
 
-import { getLTITool } from '../../ltiTool';
+import { getLTITool } from '../../ltiTool.js';
 
 /**
  * Creates a Hono route handler for initiating LTI 1.3 dynamic registration.

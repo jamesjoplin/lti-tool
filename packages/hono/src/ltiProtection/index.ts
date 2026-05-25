@@ -2,8 +2,8 @@ import type { LTIConfig, LTISession } from '@lti-tool/core';
 import type { Context, MiddlewareHandler, Next, TypedResponse } from 'hono';
 import { endTime, startTime } from 'hono/timing';
 
-import { getLTITool } from '../ltiTool';
-import { LTIContentRequestSchema } from '../schemas/ltiContentRequest.schema';
+import { getLTITool } from '../ltiTool.js';
+import { LTIContentRequestSchema } from '../schemas/ltiContentRequest.schema.js';
 
 /**
  * Context variables available when using LTI protection middleware.

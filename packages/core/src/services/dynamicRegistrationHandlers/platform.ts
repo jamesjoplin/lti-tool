@@ -4,7 +4,7 @@ import {
   RegistrationResponseSchema,
   type OpenIDConfiguration,
   type RegistrationResponse,
-} from '../../schemas';
+} from '../../schemas/index.js';
 import { escapeHtml } from '../../utils/htmlEscaping.js';
 import {
   getAGSScopes,

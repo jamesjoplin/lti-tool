@@ -1,4 +1,4 @@
-import type { OpenIDConfiguration } from '../schemas';
+import type { OpenIDConfiguration } from '../schemas/index.js';
 
 /**
  * Checks if an LTI platform supports Assignment and Grade Services (AGS).
