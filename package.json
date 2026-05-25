@@ -13,6 +13,7 @@
     "format": "oxfmt --check .",
     "format:fix": "oxfmt --write .",
     "type-check": "tsc --noEmit",
+    "smoke-test:dist": "node scripts/smoke-test-dist.mjs",
     "test": "vitest --exclude=\"**/*.integration.test.ts\"",
     "test:coverage": "vitest run --coverage --exclude=\"**/*.integration.test.ts\"",
     "changeset": "changeset",
