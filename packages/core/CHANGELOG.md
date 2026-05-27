@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.1.2
+
+### Patch Changes
+
+- 2e944db: Emit Node-compatible ESM consistently across published packages by using NodeNext module resolution and explicit `.js` extensions for internal relative imports.
+
 ## 1.1.1
 
 ### Patch Changes
