@@ -213,15 +213,27 @@ describe('LTI Integration Tests', () => {
         code: 'ERR_JWKS_NO_MATCHING_KEY',
       });
       vi.mocked(jwtVerify)
+        .mockResolvedValueOnce({
+          payload: {
+            nonce: 'test-nonce',
+            iss: 'https://platform.example.com',
+            client_id: 'client123',
+          },
+        } as any)
         .mockRejectedValueOnce(kidMissError as any)
-        .mockResolvedValueOnce({ payload: ltiPayload } as any)
-        .mockResolvedValueOnce({ payload: { nonce: 'test-nonce' } } as any);
+        .mockResolvedValueOnce({ payload: ltiPayload } as any);
 
       const validated = await ltiTool.verifyLaunch(idToken, 'state-token');
 
       expect(validated).toEqual(ltiPayload);
       expect(createRemoteJWKSet).toHaveBeenCalledTimes(2);
       expect(jwtVerify).toHaveBeenCalledTimes(3);
+      expect(jwtVerify).toHaveBeenNthCalledWith(2, idToken, staleJwks, {
+        audience: 'client123',
+      });
+      expect(jwtVerify).toHaveBeenNthCalledWith(3, idToken, freshJwks, {
+        audience: 'client123',
+      });
       expect(mockStorage.validateNonce).toHaveBeenCalledWith('test-nonce');
     });
 
@@ -276,6 +288,272 @@ describe('LTI Integration Tests', () => {
       expect(session.isInstructor).toBe(false);
       expect(session.context.label).toBe('CS101');
       expect(session.resourceLink?.title).toBe('Lab 1');
+    });
+
+    it('successfully verifies LTI launch JWT with array audience', async () => {
+      const ltiPayload = createMockLTIPayload({
+        aud: ['client123'],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      const validatedPayload = await ltiTool.verifyLaunch(jwt, stateJwt);
+
+      expect(validatedPayload.aud).toEqual(['client123']);
+      expect(mockStorage.getLaunchConfig).toHaveBeenCalledWith(
+        'https://platform.example.com',
+        'client123',
+        'deployment1',
+      );
+    });
+
+    it('binds launch config and session client ID to state when aud order differs', async () => {
+      ltiTool = new LTITool({
+        keyPair,
+        stateSecret,
+        storage: mockStorage,
+        security: {
+          keyId: 'test-key',
+          stateExpirationSeconds: 300,
+          nonceExpirationSeconds: 300,
+          trustedAudiences: ['other-client'],
+        },
+      });
+
+      vi.mocked(mockStorage.getLaunchConfig).mockImplementation(
+        (iss, clientId, deploymentId) =>
+          Promise.resolve({
+            iss,
+            clientId,
+            deploymentId,
+            authUrl: 'https://platform.example.com/auth',
+            tokenUrl: 'https://platform.example.com/token',
+            jwksUrl: 'https://platform.example.com/.well-known/jwks',
+          }),
+      );
+
+      const ltiPayload = createMockLTIPayload({
+        aud: ['other-client', 'client123'],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      const validatedPayload = await ltiTool.verifyLaunch(jwt, stateJwt);
+      const session = await ltiTool.createSession(validatedPayload);
+
+      expect(validatedPayload.aud).toEqual(['other-client', 'client123']);
+      expect(session.platform.clientId).toBe('client123');
+      expect(mockStorage.getLaunchConfig).toHaveBeenCalledTimes(1);
+      expect(mockStorage.getLaunchConfig).toHaveBeenCalledWith(
+        'https://platform.example.com',
+        'client123',
+        'deployment1',
+      );
+    });
+
+    it('rejects LTI launch JWT with untrusted additional audience', async () => {
+      const ltiPayload = createMockLTIPayload({
+        aud: ['client123', 'other-client'],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow(
+        'Untrusted audience(s): other-client',
+      );
+    });
+
+    it('rejects LTI launch JWT when state client_id is not in audience', async () => {
+      const ltiPayload = createMockLTIPayload({
+        aud: ['other-client'],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow();
+    });
+
+    it('rejects LTI launch JWT when state issuer differs from token issuer', async () => {
+      const ltiPayload = createMockLTIPayload({
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://different-platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow(
+        'Issuer mismatch',
+      );
+    });
+
+    it('successfully verifies LTI launch JWT with trusted additional audience', async () => {
+      ltiTool = new LTITool({
+        keyPair,
+        stateSecret,
+        storage: mockStorage,
+        security: {
+          keyId: 'test-key',
+          stateExpirationSeconds: 300,
+          nonceExpirationSeconds: 300,
+          trustedAudiences: ['other-client'],
+        },
+      });
+
+      const ltiPayload = createMockLTIPayload({
+        aud: ['client123', 'other-client'],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      const validatedPayload = await ltiTool.verifyLaunch(jwt, stateJwt);
+
+      expect(validatedPayload.aud).toEqual(['client123', 'other-client']);
+    });
+
+    it('rejects LTI launch JWT with empty audience array', async () => {
+      const ltiPayload = createMockLTIPayload({
+        aud: [],
+        nonce: 'test-nonce',
+      });
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow();
+    });
+
+    it('rejects LTI launch JWT without deployment_id claim', async () => {
+      const ltiPayload = createMockLTIPayload();
+      delete ltiPayload['https://purl.imsglobal.org/spec/lti/claim/deployment_id'];
+
+      const { SignJWT } = await import('jose');
+      const jwt = await new SignJWT(ltiPayload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'platform-key' })
+        .sign(platformKeyPair.privateKey);
+
+      const statePayload = {
+        nonce: 'test-nonce',
+        iss: 'https://platform.example.com',
+        client_id: 'client123',
+        target_link_uri: 'https://tool.example.com/content',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      };
+
+      const stateJwt = await new SignJWT(statePayload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(stateSecret);
+
+      await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow(
+        'No deployment_id in token',
+      );
     });
 
     it('rejects JWT with invalid signature', async () => {
