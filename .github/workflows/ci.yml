@@ -29,6 +29,9 @@ jobs:
       - name: Build packages
         run: npm run build
 
+      - name: Smoke test dist imports
+        run: npm run smoke-test:dist
+
       - name: Type check
         run: npm run type-check
 

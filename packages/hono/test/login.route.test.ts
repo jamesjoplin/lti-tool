@@ -2,7 +2,7 @@ import type { LTIConfig } from '@lti-tool/core';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { loginRouteHandler } from '../src/ltiRoutes/routes/login.route';
+import { loginRouteHandler } from '../src/ltiRoutes/routes/login.route.js';
 
 const handleLoginMock = vi.fn();
 

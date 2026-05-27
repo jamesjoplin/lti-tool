@@ -1,6 +1,6 @@
 import { index, mysqlTable, text, unique, varchar } from 'drizzle-orm/mysql-core';
 
-import { clientsTable } from './clients.schema';
+import { clientsTable } from './clients.schema.js';
 
 export const deploymentsTable = mysqlTable(
   'deployments',

@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { LTIMessagesArraySchema } from './ltiMessages.schema';
+import { LTIMessagesArraySchema } from './ltiMessages.schema.js';
 
 /**
  * Zod schema for LTI tool configuration within dynamic registration response.

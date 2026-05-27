@@ -1,4 +1,4 @@
-import type { LTIDeployment } from './ltiDeployment';
+import type { LTIDeployment } from './ltiDeployment.js';
 
 /**
  * Represents an LTI (Learning Tools Interoperability) platform configuration.

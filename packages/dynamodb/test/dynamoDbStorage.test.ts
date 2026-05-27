@@ -8,8 +8,8 @@ import type { LTIClient, LTISession } from '@lti-tool/core';
 import type { BaseLogger } from 'pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DynamoDbStorage } from '../src';
-import { LAUNCH_CONFIG_CACHE, SESSION_CACHE } from '../src/cacheConfig';
+import { LAUNCH_CONFIG_CACHE, SESSION_CACHE } from '../src/cacheConfig.js';
+import { DynamoDbStorage } from '../src/index.js';
 
 vi.mock('@aws-sdk/client-dynamodb');
 

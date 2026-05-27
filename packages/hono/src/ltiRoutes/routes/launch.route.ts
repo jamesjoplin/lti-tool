@@ -2,7 +2,7 @@ import { LTI13LaunchSchema, type LTIConfig } from '@lti-tool/core';
 import { type Handler } from 'hono';
 import { ZodError } from 'zod';
 
-import { getLTITool } from '../../ltiTool';
+import { getLTITool } from '../../ltiTool.js';
 
 /**
  * Creates a route handler for LTI launch requests.

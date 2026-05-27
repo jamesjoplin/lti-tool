@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { DeploymentSchema } from './deployment.schema';
+import { DeploymentSchema } from './deployment.schema.js';
 
 export const ClientSchema = z.object({
   id: z.uuid().describe('Internal stable UUID for the client'),

@@ -2,7 +2,7 @@ import type { LTIConfig } from '@lti-tool/core';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { completeDynamicRegistrationRouteHandler } from '../src/ltiRoutes/routes/dynamicRegistration.route';
+import { completeDynamicRegistrationRouteHandler } from '../src/ltiRoutes/routes/dynamicRegistration.route.js';
 
 const completeDynamicRegistrationMock = vi.fn();
 

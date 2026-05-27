@@ -1,6 +1,6 @@
 import { index, pgTable, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 
-import { clientsTable } from './clients.schema';
+import { clientsTable } from './clients.schema.js';
 
 export const deploymentsTable = pgTable(
   'deployments',
