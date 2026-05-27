@@ -1,5 +1,13 @@
 # @lti-tool/hono
 
+## 1.1.1
+
+### Patch Changes
+
+- 2e944db: Emit Node-compatible ESM consistently across published packages by using NodeNext module resolution and explicit `.js` extensions for internal relative imports.
+- Updated dependencies [2e944db]
+  - @lti-tool/core@1.1.2
+
 ## 1.1.0
 
 ### Minor Changes
