@@ -56,6 +56,36 @@ describe('createSession', () => {
     expect(session.isStudent).toBe(false);
   });
 
+  it('uses verified client ID when JWT audience has multiple values', () => {
+    const payload = createMinimalPayload({
+      aud: ['other-client', 'client123'],
+    });
+
+    const session = createSession(payload, { clientId: 'client123' });
+
+    expect(session.platform.clientId).toBe('client123');
+  });
+
+  it('rejects session creation with ambiguous multiple audiences', () => {
+    const payload = createMinimalPayload({
+      aud: ['other-client', 'client123'],
+    });
+
+    expect(() => createSession(payload)).toThrow(
+      'Cannot determine session client_id from multiple audiences',
+    );
+  });
+
+  it('rejects session creation with empty audience array', () => {
+    const payload = createMinimalPayload({
+      aud: [],
+    });
+
+    expect(() => createSession(payload)).toThrow(
+      'Cannot determine session client_id from empty audience',
+    );
+  });
+
   it('correctly identifies instructor role', () => {
     const payload = createMinimalPayload({
       'https://purl.imsglobal.org/spec/lti/claim/roles': [

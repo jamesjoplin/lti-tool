@@ -14,10 +14,14 @@ const ROLE_MAPPINGS: Record<string, string> = {
  * Extracts user information, context data, and available services into a structured session.
  *
  * @param lti13JwtPayload - Validated LTI 1.3 JWT payload from successful launch
+ * @param options.clientId - Verified tool client ID when the JWT has multiple audiences
  * @returns Complete LTI session object with user, context, and service information
  */
 // oxlint-disable-next-line max-lines-per-function complexity -- flat data mapping
-export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
+export function createSession(
+  lti13JwtPayload: LTI13JwtPayload,
+  options: { clientId?: string } = {},
+): LTISession {
   const roles = lti13JwtPayload['https://purl.imsglobal.org/spec/lti/claim/roles'] || [];
   const context = lti13JwtPayload['https://purl.imsglobal.org/spec/lti/claim/context'];
   const platform =
@@ -89,9 +93,7 @@ export function createSession(lti13JwtPayload: LTI13JwtPayload): LTISession {
     },
     platform: {
       issuer: lti13JwtPayload.iss,
-      clientId: Array.isArray(lti13JwtPayload.aud)
-        ? lti13JwtPayload.aud[0]
-        : lti13JwtPayload.aud,
+      clientId: getSessionClientId(lti13JwtPayload.aud, options.clientId),
       deploymentId:
         lti13JwtPayload['https://purl.imsglobal.org/spec/lti/claim/deployment_id'],
       name: platform?.name || lti13JwtPayload.iss,
@@ -127,6 +129,20 @@ function simplifyRoles(roles: string[]): string[] {
     }
   }
   return [...simplified];
+}
+
+function getSessionClientId(
+  audience: LTI13JwtPayload['aud'],
+  verifiedClientId?: string,
+): string {
+  if (verifiedClientId) return verifiedClientId;
+  if (typeof audience === 'string') return audience;
+  if (audience.length === 1) return audience[0];
+  if (audience.length === 0) {
+    throw new Error('Cannot determine session client_id from empty audience');
+  }
+
+  throw new Error('Cannot determine session client_id from multiple audiences');
 }
 
 function hasRole(roles: string[], pattern: string): boolean {

@@ -45,6 +45,10 @@ const payload = await ltiTool.verifyLaunch(idToken, state);
 const session = await ltiTool.createSession(payload);
 ```
 
+When creating a session from a payload not returned directly by `verifyLaunch` on
+the same `LTITool` instance, pass the verified client ID as the second argument
+if the launch ID token contains multiple audiences.
+
 ## Documentation
 
 - [API Reference](https://docs.lti-tool.dev) - Complete API documentation

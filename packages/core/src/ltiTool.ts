@@ -73,6 +73,7 @@ import { getValidLaunchConfig } from './utils/launchConfigValidation.js';
 export class LTITool {
   /** Cache for JWKS remote key sets to improve performance */
   private jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+  private verifiedLaunchClientIds = new WeakMap<LTI13JwtPayload, string>();
   private logger: Logger;
   private tokenService: TokenService;
   private agsService: AGSService;
@@ -204,35 +205,44 @@ export class LTITool {
         throw new Error('No issuer in token');
       }
 
-      // 2. get the launchConfig so we can get the remote JWKS from our data store
+      const deploymentId = getDeploymentId(unverified);
+
+      // 2. Verify our state JWT before binding this launch to a client configuration.
+      const stateData = await this.verifyLaunchState(validatedParams.state);
+      if (stateData.iss !== unverified.iss) {
+        throw new Error('Issuer mismatch');
+      }
+
+      // 3. Get the launchConfig so we can get the remote JWKS from our data store.
       const launchConfig = await getValidLaunchConfig(
         this.config.storage,
         unverified.iss,
-        unverified.aud as string,
-        unverified['https://purl.imsglobal.org/spec/lti/claim/deployment_id'] as string,
+        stateData.clientId,
+        deploymentId,
       );
 
-      // 3. Verify LMS JWT
+      // 4. Verify LMS JWT
       const payload = await this.verifyLaunchJwtWithCachedJwks(
         validatedParams.idToken,
         launchConfig.jwksUrl,
-      );
-
-      // 4. Verify our state JWT
-      const { payload: stateData } = await jwtVerify(
-        validatedParams.state,
-        this.config.stateSecret,
+        launchConfig.clientId,
       );
 
       // 5. Parse and validate LMS JWT
       const validated = LTI13JwtPayloadSchema.parse(payload);
 
-      // 6. Verify client id matches (audience claim)
-      if (validated.aud !== launchConfig.clientId) {
+      // 6. Verify client id is listed in the audience claim
+      if (!audienceIncludesClientId(validated.aud, launchConfig.clientId)) {
         throw new Error(
-          `Invalid client_id: expected ${launchConfig.clientId}, got ${validated.aud}`,
+          `Invalid client_id: expected ${launchConfig.clientId}, got ${formatAudience(validated.aud)}`,
         );
       }
+      validateTrustedAudiences(
+        validated.aud,
+        launchConfig.clientId,
+        this.config.security?.trustedAudiences,
+      );
+      this.verifiedLaunchClientIds.set(validated, launchConfig.clientId);
 
       // 7. Verify nonce matches
       if (stateData.nonce !== validated.nonce) {
@@ -260,14 +270,29 @@ export class LTITool {
     return jwks;
   }
 
+  private async verifyLaunchState(
+    state: string,
+  ): Promise<{ clientId: string; iss: string; nonce: unknown }> {
+    const { payload } = await jwtVerify(state, this.config.stateSecret);
+    if (typeof payload.client_id !== 'string') {
+      throw new Error('No client_id in state');
+    }
+    if (typeof payload.iss !== 'string') {
+      throw new Error('No issuer in state');
+    }
+
+    return { clientId: payload.client_id, iss: payload.iss, nonce: payload.nonce };
+  }
+
   private async verifyLaunchJwtWithCachedJwks(
     idToken: string,
     jwksUrl: string,
+    audience: string,
   ): Promise<LTI13JwtPayload> {
     const jwks = this.getOrCreateJwks(jwksUrl);
 
     try {
-      const { payload } = await jwtVerify(idToken, jwks);
+      const { payload } = await jwtVerify(idToken, jwks, { audience });
       return payload as LTI13JwtPayload;
     } catch (error) {
       if ((error as { code?: string }).code !== 'ERR_JWKS_NO_MATCHING_KEY') {
@@ -277,7 +302,7 @@ export class LTITool {
       // Key rotation fallback: evict cached JWKS and retry verification once.
       this.jwksCache.delete(jwksUrl);
       const refreshedJwks = this.getOrCreateJwks(jwksUrl);
-      const { payload } = await jwtVerify(idToken, refreshedJwks);
+      const { payload } = await jwtVerify(idToken, refreshedJwks, { audience });
       return payload as LTI13JwtPayload;
     }
   }
@@ -309,11 +334,17 @@ export class LTITool {
    * Creates and stores a new LTI session from validated JWT payload.
    *
    * @param lti13JwtPayload - Validated LTI 1.3 JWT payload from successful launch
+   * @param clientId - Verified tool client ID when the JWT has multiple audiences. Required if the payload was not returned directly from verifyLaunch on this LTITool instance.
    * @returns Created session object with user, context, and service information
    */
-  async createSession(lti13JwtPayload: LTI13JwtPayload): Promise<LTISession> {
+  async createSession(
+    lti13JwtPayload: LTI13JwtPayload,
+    clientId?: string,
+  ): Promise<LTISession> {
     try {
-      const session = createSession(lti13JwtPayload);
+      const session = createSession(lti13JwtPayload, {
+        clientId: clientId ?? this.verifiedLaunchClientIds.get(lti13JwtPayload),
+      });
       await this.config.storage.addSession(session);
       return session;
     } catch (error) {
@@ -949,6 +980,44 @@ export class LTITool {
       );
     }
   }
+}
+
+function audienceIncludesClientId(
+  audience: LTI13JwtPayload['aud'],
+  clientId: string,
+): boolean {
+  return Array.isArray(audience) ? audience.includes(clientId) : audience === clientId;
+}
+
+function validateTrustedAudiences(
+  audience: LTI13JwtPayload['aud'],
+  clientId: string,
+  trustedAudiences: string[] = [],
+): void {
+  if (!Array.isArray(audience)) return;
+
+  const trusted = new Set([clientId, ...trustedAudiences]);
+  const untrustedAudiences = [...new Set(audience)].filter(
+    (candidate) => !trusted.has(candidate),
+  );
+
+  if (untrustedAudiences.length > 0) {
+    throw new Error(`Untrusted audience(s): ${untrustedAudiences.join(', ')}`);
+  }
+}
+
+function formatAudience(audience: LTI13JwtPayload['aud']): string {
+  return Array.isArray(audience) ? JSON.stringify(audience) : audience;
+}
+
+function getDeploymentId(payload: Record<string, unknown>): string {
+  const deploymentId = payload['https://purl.imsglobal.org/spec/lti/claim/deployment_id'];
+  // The OIDC login parameter is optional, but the signed LTI message claim is required.
+  if (typeof deploymentId !== 'string') {
+    throw new Error('No deployment_id in token');
+  }
+
+  return deploymentId;
 }
 
 /**

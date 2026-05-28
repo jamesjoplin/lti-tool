@@ -71,6 +71,11 @@ export interface LTIConfig {
     stateExpirationSeconds?: number;
     /** Nonce expiration time in seconds (defaults to 600 = 10 minutes) */
     nonceExpirationSeconds?: number;
+    /**
+     * Additional JWT audience values to trust when a launch ID Token includes
+     * audiences besides this tool's client ID. Most tools should leave this unset.
+     */
+    trustedAudiences?: string[];
   };
 
   /** Dynamic registration configuration for LTI 1.3 tool registration */
