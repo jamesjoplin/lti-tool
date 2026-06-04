@@ -37,7 +37,7 @@ export class MemoryStorage implements LTIStorage {
   private clientLookup = new Map<string, string>(); // issuer#clientId -> internalClientId
 
   private sessions = new Map<string, LTISession>();
-  private nonces = new Map<string, Date>(); // nonce -> expiration date
+  private nonces = new Map<string, { expiresAt: Date; usedAt?: Date }>();
   private registrationSessions = new Map<string, LTIDynamicRegistrationSession>();
   private logger: Logger;
 
@@ -168,27 +168,34 @@ export class MemoryStorage implements LTIStorage {
 
   // oxlint-disable-next-line require-await
   async storeNonce(nonce: string, expiresAt: Date): Promise<void> {
-    this.nonces.set(nonce, expiresAt);
+    if (this.nonces.has(nonce)) {
+      throw new Error('Nonce already exists');
+    }
+
+    this.nonces.set(nonce, { expiresAt });
     this.logger.debug({ nonce, expiresAt }, 'nonce stored with expiration');
   }
 
   // oxlint-disable-next-line require-await
   async validateNonce(nonce: string): Promise<boolean> {
-    const expiresAt = this.nonces.get(nonce);
+    const nonceRecord = this.nonces.get(nonce);
 
-    if (!expiresAt) {
+    if (!nonceRecord) {
       this.logger.warn({ nonce }, 'nonce not found - invalid nonce');
       return false;
     }
 
-    if (expiresAt < new Date()) {
-      this.logger.warn({ nonce, expiresAt }, 'nonce expired');
-      this.nonces.delete(nonce); // Clean up expired nonce
+    if (nonceRecord.usedAt) {
+      this.logger.warn({ nonce }, 'nonce already used');
       return false;
     }
 
-    // Mark as used by deleting it (one-time use)
-    this.nonces.delete(nonce);
+    if (nonceRecord.expiresAt < new Date()) {
+      this.logger.warn({ nonce, expiresAt: nonceRecord.expiresAt }, 'nonce expired');
+      return false;
+    }
+
+    nonceRecord.usedAt = new Date();
     this.logger.debug({ nonce }, 'nonce validated and consumed');
     return true;
   }

@@ -146,6 +146,26 @@ describe('LTI Integration Tests', () => {
       await expect(ltiTool.handleLogin(loginParams)).rejects.toThrow(
         'No valid launch config found',
       );
+      expect(mockStorage.storeNonce).not.toHaveBeenCalled();
+    });
+
+    it('throws error when nonce storage fails', async () => {
+      vi.mocked(mockStorage.storeNonce).mockRejectedValueOnce(
+        new Error('Nonce already exists'),
+      );
+
+      const loginParams = {
+        client_id: 'client123',
+        iss: 'https://platform.example.com',
+        launchUrl: 'https://tool.example.com/launch',
+        login_hint: 'user123',
+        target_link_uri: 'https://tool.example.com/content',
+        lti_deployment_id: 'deployment1',
+      };
+
+      await expect(ltiTool.handleLogin(loginParams)).rejects.toThrow(
+        'Nonce already exists',
+      );
     });
   });
 
@@ -638,7 +658,7 @@ describe('LTI Integration Tests', () => {
         .sign(stateSecret);
 
       await expect(ltiTool.verifyLaunch(jwt, stateJwt)).rejects.toThrow(
-        'Nonce has already been used or expired',
+        'Nonce was not issued by this tool, has expired, or was already used',
       );
     });
   });

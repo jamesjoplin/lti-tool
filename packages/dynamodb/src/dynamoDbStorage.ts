@@ -9,6 +9,8 @@ import {
   PutItemCommand,
   type PutItemCommandOutput,
   QueryCommand,
+  UpdateItemCommand,
+  type UpdateItemCommandOutput,
 } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import type {
@@ -45,7 +47,6 @@ export class DynamoDbStorage implements LTIStorage {
   private dataPlaneTable: string;
   private launchConfigTable: string;
   private ddbClient: DynamoDBClient;
-  private nonceExpirationSeconds: number;
 
   /**
    * Creates a new DynamoDB storage instance.
@@ -64,7 +65,6 @@ export class DynamoDbStorage implements LTIStorage {
     this.controlPlaneTable = config.controlPlaneTable;
     this.dataPlaneTable = config.dataPlaneTable;
     this.launchConfigTable = config.launchConfigTable;
-    this.nonceExpirationSeconds = config.nonceExpirationSeconds ?? 600;
     this.ddbClient = new DynamoDBClient();
   }
 
@@ -426,41 +426,58 @@ export class DynamoDbStorage implements LTIStorage {
     this.logger.debug({ clientId, deploymentId }, 'deployment deleted');
   }
 
-  // oxlint-disable-next-line no-unused-vars require-await
   async storeNonce(nonce: string, expiresAt: Date): Promise<void> {
-    // Noop - the real work happens in validateNonce with conditional put
-    this.logger.trace({ nonce, expiresAt }, 'nonce will be validated on use');
+    this.logger.debug({ nonce, expiresAt }, 'storing nonce');
+
+    const ttl = Math.floor(expiresAt.getTime() / 1000);
+    const result = await this.ddbClient.send(
+      new PutItemCommand({
+        TableName: this.dataPlaneTable,
+        Item: marshall({
+          pk: this.createNonceKey(nonce),
+          sk: this.createNonceKey(nonce),
+          nonce,
+          expiresAt: expiresAt.toISOString(),
+          ttl,
+        }),
+        ConditionExpression: 'attribute_not_exists(pk)',
+        ReturnConsumedCapacity: 'TOTAL',
+      }),
+    );
+    this.logDynamoDbResult(result, 'store nonce');
   }
 
   async validateNonce(nonce: string): Promise<boolean> {
     this.logger.debug({ nonce }, 'validating nonce');
 
-    const expiresAt = new Date(Date.now() + this.nonceExpirationSeconds * 1000);
-    const ttl = Math.floor(expiresAt.getTime() / 1000);
+    const now = new Date().toISOString();
 
     try {
       const result = await this.ddbClient.send(
-        new PutItemCommand({
+        new UpdateItemCommand({
           TableName: this.dataPlaneTable,
-          Item: marshall({
+          Key: marshall({
             pk: this.createNonceKey(nonce),
             sk: this.createNonceKey(nonce),
-            nonce,
-            expiresAt: expiresAt.toISOString(),
-            ttl,
           }),
-          ConditionExpression: 'attribute_not_exists(pk)', // Only succeed if nonce doesn't exist
+          UpdateExpression: 'SET usedAt = :usedAt',
+          ConditionExpression:
+            'attribute_exists(pk) AND attribute_not_exists(usedAt) AND expiresAt > :now',
+          ExpressionAttributeValues: marshall({
+            ':usedAt': now,
+            ':now': now,
+          }),
           ReturnConsumedCapacity: 'TOTAL',
         }),
       );
       this.logDynamoDbResult(result, 'validate nonce');
-      return true; // Success = nonce was valid
+      return true;
     } catch (error) {
       if (error instanceof ConditionalCheckFailedException) {
-        this.logger.warn({ nonce }, 'nonce already used - replay attack detected');
-        return false; // Nonce already exists = replay attack
+        this.logger.warn({ nonce }, 'nonce not found, expired, or already used');
+        return false;
       }
-      throw error; // Re-throw other errors
+      throw error;
     }
   }
 
@@ -786,7 +803,11 @@ export class DynamoDbStorage implements LTIStorage {
    * Logs DynamoDB operation result and consumed capacity.
    */
   private logDynamoDbResult(
-    result: GetItemCommandOutput | PutItemCommandOutput | DeleteItemCommandOutput,
+    result:
+      | DeleteItemCommandOutput
+      | GetItemCommandOutput
+      | PutItemCommandOutput
+      | UpdateItemCommandOutput,
     operation: string,
   ): void {
     this.logger.debug({ result }, `${operation} result`);

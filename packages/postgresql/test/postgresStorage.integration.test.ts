@@ -153,15 +153,50 @@ describe('PostgresStorage - Session Operations', () => {
 });
 
 describe('PostgresStorage - Nonce Validation', () => {
-  it('should validate a new nonce', async () => {
+  it('should reject a nonce that was never stored', async () => {
+    const result = await storage.validateNonce('unknown-nonce');
+    expect(result).toBe(false);
+  });
+
+  it('should validate a stored nonce once', async () => {
+    await storage.storeNonce('unique-nonce', new Date(Date.now() + 60_000));
+
     const result = await storage.validateNonce('unique-nonce');
     expect(result).toBe(true);
   });
 
-  it('should reject duplicate nonce', async () => {
+  it('should reject duplicate nonce storage', async () => {
+    await storage.storeNonce('stored-twice-nonce', new Date(Date.now() + 60_000));
+
+    await expect(
+      storage.storeNonce('stored-twice-nonce', new Date(Date.now() + 60_000)),
+    ).rejects.toThrow();
+  });
+
+  it('should reject duplicate nonce validation', async () => {
+    await storage.storeNonce('dup-nonce', new Date(Date.now() + 60_000));
     await storage.validateNonce('dup-nonce');
+
     const result = await storage.validateNonce('dup-nonce');
     expect(result).toBe(false);
+  });
+
+  it('should reject expired stored nonces', async () => {
+    await storage.storeNonce('expired-nonce', new Date(Date.now() - 1000));
+
+    const result = await storage.validateNonce('expired-nonce');
+    expect(result).toBe(false);
+  });
+
+  it('should allow only one concurrent validation to consume the nonce', async () => {
+    await storage.storeNonce('race-nonce', new Date(Date.now() + 60_000));
+
+    const results = await Promise.all([
+      storage.validateNonce('race-nonce'),
+      storage.validateNonce('race-nonce'),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
   });
 });
 
