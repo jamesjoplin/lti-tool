@@ -229,6 +229,28 @@ describe('Schema Validation Tests', () => {
       expect(() => LTI13JwtPayloadSchema.parse(validPayload)).not.toThrow();
     });
 
+    it('rejects payload with invalid target_link_uri', () => {
+      const invalidPayload = {
+        iss: 'https://platform.example.com',
+        sub: 'user123',
+        aud: 'client123',
+        exp: Math.floor(Date.now() / 1000) + 300,
+        iat: Math.floor(Date.now() / 1000),
+        nonce: 'test-nonce',
+        given_name: 'John',
+        family_name: 'Doe',
+        name: 'John Doe',
+        email: 'john.doe@university.edu',
+        'https://purl.imsglobal.org/spec/lti/claim/message_type':
+          'LtiResourceLinkRequest',
+        'https://purl.imsglobal.org/spec/lti/claim/version': '1.3.0',
+        'https://purl.imsglobal.org/spec/lti/claim/deployment_id': 'deployment1',
+        'https://purl.imsglobal.org/spec/lti/claim/target_link_uri': 'not-a-url',
+      };
+
+      expect(() => LTI13JwtPayloadSchema.parse(invalidPayload)).toThrow();
+    });
+
     it('rejects payload with invalid message type', () => {
       const invalidPayload = {
         iss: 'https://platform.example.com',

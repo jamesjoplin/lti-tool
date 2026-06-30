@@ -188,6 +188,7 @@ export class LTITool {
    * - State JWT verification to prevent CSRF
    * - Nonce validation to prevent replay attacks
    * - Client ID and deployment ID verification
+   * - Target link URI binding to the value requested during login initiation
    * - LTI 1.3 claim structure validation
    *
    * @param idToken - JWT id_token received from platform after authentication
@@ -244,12 +245,15 @@ export class LTITool {
       );
       this.verifiedLaunchClientIds.set(validated, launchConfig.clientId);
 
-      // 7. Verify nonce matches
+      // 7. Verify the launch target is the same target requested during login.
+      validateTargetLinkUri(validated, stateData.targetLinkUri);
+
+      // 8. Verify nonce matches
       if (stateData.nonce !== validated.nonce) {
         throw new Error('Nonce mismatch');
       }
 
-      // 8. Check nonce hasn't been used before (prevent replay attacks)
+      // 9. Check nonce hasn't been used before (prevent replay attacks)
       const isValidNonce = await this.config.storage.validateNonce(validated.nonce);
       if (!isValidNonce) {
         throw new Error(
@@ -274,7 +278,7 @@ export class LTITool {
 
   private async verifyLaunchState(
     state: string,
-  ): Promise<{ clientId: string; iss: string; nonce: unknown }> {
+  ): Promise<{ clientId: string; iss: string; nonce: string; targetLinkUri: string }> {
     const { payload } = await jwtVerify(state, this.config.stateSecret);
     if (typeof payload.client_id !== 'string') {
       throw new Error('No client_id in state');
@@ -282,8 +286,20 @@ export class LTITool {
     if (typeof payload.iss !== 'string') {
       throw new Error('No issuer in state');
     }
+    if (typeof payload.nonce !== 'string') {
+      throw new Error('No nonce in state');
+    }
+    if (typeof payload.target_link_uri !== 'string') {
+      throw new Error('No target_link_uri in state');
+    }
+    HandleLoginParamsSchema.shape.target_link_uri.parse(payload.target_link_uri);
 
-    return { clientId: payload.client_id, iss: payload.iss, nonce: payload.nonce };
+    return {
+      clientId: payload.client_id,
+      iss: payload.iss,
+      nonce: payload.nonce,
+      targetLinkUri: payload.target_link_uri,
+    };
   }
 
   private async verifyLaunchJwtWithCachedJwks(
@@ -1005,6 +1021,21 @@ function validateTrustedAudiences(
 
   if (untrustedAudiences.length > 0) {
     throw new Error(`Untrusted audience(s): ${untrustedAudiences.join(', ')}`);
+  }
+}
+
+function validateTargetLinkUri(
+  payload: LTI13JwtPayload,
+  expectedTargetLinkUri: string,
+): void {
+  const targetLinkUri =
+    payload['https://purl.imsglobal.org/spec/lti/claim/target_link_uri'];
+  // LTI requires this to be the same value passed during login initiation.
+  // Keep this as an exact string match; URL normalization can change routing semantics.
+  if (targetLinkUri !== expectedTargetLinkUri) {
+    throw new Error(
+      `target_link_uri mismatch: expected ${expectedTargetLinkUri}, got ${targetLinkUri}`,
+    );
   }
 }
 

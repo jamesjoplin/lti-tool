@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.1.4
+
+### Patch Changes
+
+- 13da520: feature: core - Bind LTI launch target to login state. Package updates.
+
 ## 1.1.3
 
 ### Patch Changes
