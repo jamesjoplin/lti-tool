@@ -7,7 +7,7 @@ import {
   type LTISession,
   type LTIStorage,
 } from '@lti-tool/core';
-import { and, eq, gt, lt } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Logger } from 'pino';
 import postgres from 'postgres';
@@ -32,7 +32,6 @@ export class PostgresStorage implements LTIStorage {
   private logger: Logger;
   private db: PostgresJsDatabase<typeof schema>;
   private sql: postgres.Sql;
-  private nonceExpirationSeconds: number;
 
   constructor(config: PostgresStorageConfig) {
     this.logger =
@@ -43,8 +42,6 @@ export class PostgresStorage implements LTIStorage {
         warn: () => {},
         error: () => {},
       } as unknown as Logger);
-
-    this.nonceExpirationSeconds = config.nonceExpirationSeconds ?? 600;
 
     // Smart connection limit defaults
     const isServerless = isServerlessEnvironment();
@@ -349,47 +346,37 @@ export class PostgresStorage implements LTIStorage {
     this.logger.debug({ clientId, deploymentId }, 'deployment deleted');
   }
 
-  // oxlint-disable-next-line no-unused-vars require-await
   async storeNonce(nonce: string, expiresAt: Date): Promise<void> {
-    // Noop - the real work happens in validateNonce
-    this.logger.trace({ nonce, expiresAt }, 'nonce will be validated on use');
+    this.logger.debug({ nonce, expiresAt }, 'storing nonce');
+
+    await this.db.insert(schema.noncesTable).values({
+      nonce,
+      expiresAt,
+      usedAt: null,
+    });
   }
 
   async validateNonce(nonce: string): Promise<boolean> {
     this.logger.debug({ nonce }, 'validating nonce');
 
-    // 1. Check if nonce exists and is still valid (not expired)
-    const [existing] = await this.db
-      .select()
-      .from(schema.noncesTable)
+    const [updated] = await this.db
+      .update(schema.noncesTable)
+      .set({ usedAt: new Date() })
       .where(
         and(
           eq(schema.noncesTable.nonce, nonce),
-          gt(schema.noncesTable.expiresAt, new Date()), // expiresAt > NOW()
+          isNull(schema.noncesTable.usedAt),
+          gt(schema.noncesTable.expiresAt, new Date()),
         ),
       )
-      .limit(1);
+      .returning({ nonce: schema.noncesTable.nonce });
 
-    if (existing) {
-      this.logger.warn({ nonce }, 'nonce already used - replay attack detected');
-      return false; // Nonce exists and hasn't expired = replay attack
+    if (!updated) {
+      this.logger.warn({ nonce }, 'nonce not found, expired, or already used');
+      return false;
     }
 
-    // 2. Try to insert the nonce
-    const expiresAt = new Date(Date.now() + this.nonceExpirationSeconds * 1000);
-
-    try {
-      await this.db.insert(schema.noncesTable).values({ nonce, expiresAt });
-      return true;
-    } catch (error) {
-      // Duplicate key error (race condition - another request inserted same nonce)
-      // PostgreSQL error code for unique_violation
-      if ((error as { code?: string }).code === '23505') {
-        this.logger.warn({ nonce }, 'nonce collision detected - replay attack');
-        return false;
-      }
-      throw error;
-    }
+    return true;
   }
 
   async getSession(sessionId: string): Promise<LTISession | undefined> {

@@ -66,7 +66,6 @@ npx drizzle-kit migrate
 - **poolOptions** (optional): postgres.js connection options
   - `max`: Max connections (auto: 1 for serverless, 10 for servers)
   - `idleTimeout`: Idle timeout in seconds before connection is closed (default: 20)
-- **nonceExpirationSeconds** (optional): Nonce TTL in seconds (default: 600)
 
 - **logger** (optional): Pino logger for debugging
 
@@ -83,6 +82,7 @@ The adapter uses these tables:
 - **nonces**: One-time use nonces
   Primary key: `nonce`
   Indexed: `expiresAt`
+  Consumed with `usedAt`
 - **registration_sessions**: Dynamic registration sessions
   Indexed: `expiresAt`
 
@@ -134,10 +134,11 @@ All tables use native PostgreSQL UUIDs for primary keys and include indexes for 
 
 ### nonces
 
-| Column      | Type                     | Constraints           | Description                |
-| ----------- | ------------------------ | --------------------- | -------------------------- |
-| `nonce`     | VARCHAR(255)             | PRIMARY KEY, NOT NULL | One-time use nonce value   |
-| `expiresAt` | TIMESTAMP WITH TIME ZONE | NOT NULL              | Nonce expiration timestamp |
+| Column      | Type                     | Constraints           | Description                 |
+| ----------- | ------------------------ | --------------------- | --------------------------- |
+| `nonce`     | VARCHAR(255)             | PRIMARY KEY, NOT NULL | One-time use nonce value    |
+| `expiresAt` | TIMESTAMP WITH TIME ZONE | NOT NULL              | Nonce expiration timestamp  |
+| `usedAt`    | TIMESTAMP WITH TIME ZONE | NULL                  | When the nonce was consumed |
 
 ### registration_sessions
 

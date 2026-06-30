@@ -2,6 +2,8 @@
 import {
   ConditionalCheckFailedException,
   DynamoDBClient,
+  PutItemCommand,
+  UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import type { LTIClient, LTISession } from '@lti-tool/core';
@@ -168,8 +170,36 @@ describe('DynamoDbStorage', () => {
     });
   });
 
-  describe('validateNonce', () => {
-    it('returns false for existing nonce (replay attack)', async () => {
+  describe('nonce validation', () => {
+    it('stores nonce with TTL', async () => {
+      mockSend.mockResolvedValue({ $metadata: { httpStatusCode: 200 } });
+
+      const expiresAt = new Date('2030-01-01T00:00:00.000Z');
+
+      await storage.storeNonce('new-nonce', expiresAt);
+
+      expect(mockSend).toHaveBeenCalledOnce();
+      expect(PutItemCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'dataPlane',
+          ConditionExpression: 'attribute_not_exists(pk)',
+        }),
+      );
+    });
+
+    it('propagates duplicate nonce storage failures', async () => {
+      const conditionalError = new ConditionalCheckFailedException({
+        message: 'The conditional request failed',
+        $metadata: {},
+      });
+      mockSend.mockRejectedValue(conditionalError);
+
+      await expect(
+        storage.storeNonce('stored-twice-nonce', new Date(Date.now() + 60_000)),
+      ).rejects.toBe(conditionalError);
+    });
+
+    it('returns false when nonce is not found, expired, or already used', async () => {
       const conditionalError = new ConditionalCheckFailedException({
         message: 'The conditional request failed',
         $metadata: {},
@@ -182,15 +212,38 @@ describe('DynamoDbStorage', () => {
       expect(result).toBe(false);
     });
 
-    it('returns true and stores new nonce', async () => {
-      mockSend
-        .mockResolvedValueOnce({ $metadata: { httpStatusCode: 200 }, Item: undefined })
-        .mockResolvedValueOnce({ $metadata: { httpStatusCode: 200 } });
+    it('returns true and marks a stored nonce used', async () => {
+      mockSend.mockResolvedValueOnce({ $metadata: { httpStatusCode: 200 } });
 
-      const result = await storage.validateNonce('new-nonce');
+      const result = await storage.validateNonce('stored-nonce');
 
       expect(result).toBe(true);
-      expect(mockSend).toHaveBeenCalledTimes(1); // single conditional input
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(UpdateItemCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          TableName: 'dataPlane',
+          UpdateExpression: 'SET usedAt = :usedAt',
+          ConditionExpression:
+            'attribute_exists(pk) AND attribute_not_exists(usedAt) AND expiresAt > :now',
+        }),
+      );
+    });
+
+    it('allows only one concurrent validation to consume the nonce', async () => {
+      const conditionalError = new ConditionalCheckFailedException({
+        message: 'The conditional request failed',
+        $metadata: {},
+      });
+      mockSend
+        .mockResolvedValueOnce({ $metadata: { httpStatusCode: 200 } })
+        .mockRejectedValueOnce(conditionalError);
+
+      const results = await Promise.all([
+        storage.validateNonce('race-nonce'),
+        storage.validateNonce('race-nonce'),
+      ]);
+
+      expect(results.filter(Boolean)).toHaveLength(1);
     });
   });
 

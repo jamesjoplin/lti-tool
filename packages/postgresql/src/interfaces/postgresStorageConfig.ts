@@ -28,8 +28,4 @@ export interface PostgresStorageConfig {
      */
     idleTimeout?: number;
   };
-  /**
-   * Nonce expiration time in seconds (defaults to 600 = 10 minutes)
-   */
-  nonceExpirationSeconds?: number;
 }

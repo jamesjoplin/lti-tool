@@ -268,13 +268,6 @@ export class D1Storage implements LTIStorage {
         expiresAt: expiresAt.toISOString(),
         usedAt: null,
       })
-      .onConflictDoUpdate({
-        target: schema.noncesTable.nonce,
-        set: {
-          expiresAt: expiresAt.toISOString(),
-          usedAt: null,
-        },
-      })
       .run();
   }
 

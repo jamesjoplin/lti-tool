@@ -122,7 +122,8 @@ export interface LTIStorage {
   // Nonce validation (prevent replay attacks)
 
   /**
-   * Stores a nonce with expiration time for replay attack prevention.
+   * Stores an issued nonce with expiration time for replay attack prevention.
+   * Implementations should treat this as create-only and fail if the nonce already exists.
    *
    * @param nonce - Unique nonce value (typically a UUID)
    * @param expiresAt - When this nonce should be considered expired
@@ -130,10 +131,10 @@ export interface LTIStorage {
   storeNonce(nonce: string, expiresAt: Date): Promise<void>;
 
   /**
-   * Validates a nonce and marks it as used to prevent replay attacks.
+   * Validates a previously stored nonce and marks it as used to prevent replay attacks.
    *
    * @param nonce - Nonce value to validate
-   * @returns true if nonce is valid and unused, false if already used or expired
+   * @returns true if nonce was stored, unexpired, and unused; false if unknown, already used, or expired
    */
   validateNonce(nonce: string): Promise<boolean>;
 

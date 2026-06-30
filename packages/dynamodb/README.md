@@ -75,11 +75,13 @@ Stores LMS client and deployment configurations.
 
 Stores sessions and nonces with automatic TTL cleanup.
 
-| Attribute | Type   | Description                    |
-| --------- | ------ | ------------------------------ |
-| `pk`      | String | `S#<sessionId>` or `N#<nonce>` |
-| `sk`      | String | Same as pk                     |
-| `ttl`     | Number | TTL for auto cleanup           |
+| Attribute   | Type   | Description                               |
+| ----------- | ------ | ----------------------------------------- |
+| `pk`        | String | `S#<sessionId>` or `N#<nonce>`            |
+| `sk`        | String | Same as pk                                |
+| `expiresAt` | String | Expiration timestamp for nonce validation |
+| `usedAt`    | String | Present after nonce consumption           |
+| `ttl`       | Number | TTL for auto cleanup                      |
 
 ### Launch Config Table (`lti-tool-launch-config`)
 

@@ -66,7 +66,6 @@ npx drizzle-kit migrate
 - **poolOptions** (optional): mysql2 pool configuration
   - `connectionLimit`: Max connections (auto: 1 for serverless, 10 for servers)
   - `queueLimit`: Max queued requests (default: 0 = unlimited)
-- **nonceExpirationSeconds** (optional): Nonce TTL in seconds (default: 600)
 
 - **logger** (optional): Pino logger for debugging
 
@@ -82,11 +81,11 @@ The adapter uses these tables:
   Indexed: `expiresAt`
 - **nonces**: One-time use nonces
   Primary key: `nonce`
-  Indexed: `expiresAt`
+  Consumed with `usedAt`
 - **registrationSessions**: Dynamic registration sessions
   Indexed: `expiresAt`
 
-All tables use UUIDs for primary keys and include indexes for performance.
+Tables use UUIDs for primary keys and include indexes where lookup and cleanup paths need them.
 
 ### clients
 
@@ -134,10 +133,11 @@ All tables use UUIDs for primary keys and include indexes for performance.
 
 ### nonces
 
-| Column      | Type         | Constraints           | Description                |
-| ----------- | ------------ | --------------------- | -------------------------- |
-| `nonce`     | VARCHAR(255) | PRIMARY KEY, NOT NULL | One-time use nonce value   |
-| `expiresAt` | DATETIME     | NOT NULL              | Nonce expiration timestamp |
+| Column      | Type         | Constraints           | Description                 |
+| ----------- | ------------ | --------------------- | --------------------------- |
+| `nonce`     | VARCHAR(255) | PRIMARY KEY, NOT NULL | One-time use nonce value    |
+| `expiresAt` | DATETIME     | NOT NULL              | Nonce expiration timestamp  |
+| `usedAt`    | DATETIME     | NULL                  | When the nonce was consumed |
 
 ### registrationSessions
 

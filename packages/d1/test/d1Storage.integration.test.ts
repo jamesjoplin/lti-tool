@@ -248,12 +248,41 @@ describe('D1Storage with Miniflare D1', () => {
       await expect(harness.storage('validateNonce', 'nonce-id')).resolves.toBe(false);
     });
 
+    it('rejects duplicate nonce storage', async () => {
+      await harness.storage('storeNonce', 'stored-twice-nonce', futureIso());
+
+      await expect(
+        harness.storage('storeNonce', 'stored-twice-nonce', futureIso()),
+      ).rejects.toThrow();
+    });
+
     it('returns false for expired nonces', async () => {
       await harness.storage('storeNonce', 'expired-nonce', pastIso());
 
       await expect(harness.storage('validateNonce', 'expired-nonce')).resolves.toBe(
         false,
       );
+    });
+
+    it('does not allow storeNonce to reopen a consumed nonce', async () => {
+      await harness.storage('storeNonce', 'reused-nonce', futureIso());
+      await expect(harness.storage('validateNonce', 'reused-nonce')).resolves.toBe(true);
+
+      await expect(
+        harness.storage('storeNonce', 'reused-nonce', futureIso()),
+      ).rejects.toThrow();
+      await expect(harness.storage('validateNonce', 'reused-nonce')).resolves.toBe(false);
+    });
+
+    it('allows only one concurrent validation to consume the nonce', async () => {
+      await harness.storage('storeNonce', 'race-nonce', futureIso());
+
+      const results = await Promise.all([
+        harness.storage('validateNonce', 'race-nonce'),
+        harness.storage('validateNonce', 'race-nonce'),
+      ]);
+
+      expect(results.filter(Boolean)).toHaveLength(1);
     });
   });
 

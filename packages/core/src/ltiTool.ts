@@ -146,6 +146,13 @@ export class LTITool {
     try {
       const validatedParams = HandleLoginParamsSchema.parse(params);
 
+      const launchConfig = await getValidLaunchConfig(
+        this.config.storage,
+        validatedParams.iss,
+        validatedParams.client_id,
+        validatedParams.lti_deployment_id,
+      );
+
       const nonce = crypto.randomUUID();
 
       // Store nonce with expiration for replay attack prevention
@@ -164,13 +171,6 @@ export class LTITool {
       })
         .setProtectedHeader({ alg: 'HS256' })
         .sign(this.config.stateSecret);
-
-      const launchConfig = await getValidLaunchConfig(
-        this.config.storage,
-        validatedParams.iss,
-        validatedParams.client_id,
-        validatedParams.lti_deployment_id,
-      );
 
       return buildAuthUrl(launchConfig, validatedParams, state, nonce);
     } catch (error) {
@@ -256,7 +256,9 @@ export class LTITool {
       // 9. Check nonce hasn't been used before (prevent replay attacks)
       const isValidNonce = await this.config.storage.validateNonce(validated.nonce);
       if (!isValidNonce) {
-        throw new Error('Nonce has already been used or expired');
+        throw new Error(
+          'Nonce was not issued by this tool, has expired, or was already used',
+        );
       }
 
       return validated;
