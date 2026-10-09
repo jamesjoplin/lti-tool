@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@lti-tool/core": "*",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.4"
   },
   "peerDependencies": {
     "pino": "^9.9.0"
@@ -50,8 +50,8 @@
     }
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10",
-    "miniflare": "^4.20260722.1",
-    "pino": "^10.3.1"
+    "drizzle-kit": "^0.31.11",
+    "miniflare": "^4.20260730.0",
+    "pino": "^10.4.0"
   }
 }
