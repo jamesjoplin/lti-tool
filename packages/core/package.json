@@ -36,8 +36,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "jose": "^6.2.4",
-    "zod": "^4.4.3"
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "pino": "^9.11.0"
@@ -48,6 +48,6 @@
     }
   },
   "devDependencies": {
-    "pino": "^10.3.1"
+    "pino": "^10.4.0"
   }
 }
