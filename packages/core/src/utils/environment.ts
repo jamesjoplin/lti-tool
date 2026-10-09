@@ -13,21 +13,19 @@
 export function isServerlessEnvironment(): boolean {
   return !!(
     // AWS Lambda
-    (
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.env.AWS_EXECUTION_ENV ||
-      process.env.LAMBDA_TASK_ROOT ||
-      // Google Cloud Functions / Cloud Run
-      process.env.FUNCTION_NAME ||
-      process.env.FUNCTION_TARGET ||
-      process.env.K_SERVICE ||
-      // Azure Functions
-      process.env.FUNCTIONS_WORKER_RUNTIME ||
-      process.env.AZURE_FUNCTIONS_ENVIRONMENT ||
-      // Vercel
-      process.env.VERCEL ||
-      // Netlify Functions
-      process.env.NETLIFY
-    )
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.LAMBDA_TASK_ROOT ||
+    // Google Cloud Functions / Cloud Run
+    process.env.FUNCTION_NAME ||
+    process.env.FUNCTION_TARGET ||
+    process.env.K_SERVICE ||
+    // Azure Functions
+    process.env.FUNCTIONS_WORKER_RUNTIME ||
+    process.env.AZURE_FUNCTIONS_ENVIRONMENT ||
+    // Vercel
+    process.env.VERCEL ||
+    // Netlify Functions
+    process.env.NETLIFY
   );
 }

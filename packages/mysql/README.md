@@ -15,8 +15,8 @@ npm install @lti-tool/mysql
 ## Quick Start
 
 ```typescript
-import { MySqlStorage } from '@lti-tool/mysql';
 import { LTITool } from '@lti-tool/core';
+import { MySqlStorage } from '@lti-tool/mysql';
 
 const storage = new MySqlStorage({
   connectionUrl: process.env.DATABASE_URL!,

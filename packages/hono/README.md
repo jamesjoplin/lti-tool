@@ -23,7 +23,6 @@ npm install @lti-tool/core @lti-tool/hono @lti-tool/memory
 Create a minimal Hono powered LTI tool
 
 ```typescript
-import { Hono } from 'hono';
 import { LTITool } from '@lti-tool/core';
 import {
   jwksRouteHandler,
@@ -32,6 +31,7 @@ import {
   secureLTISession,
 } from '@lti-tool/hono';
 import { MemoryStorage } from '@lti-tool/memory';
+import { Hono } from 'hono';
 
 // Generate keypair (use proper key management in production)
 const keyPair = await crypto.subtle.generateKey(

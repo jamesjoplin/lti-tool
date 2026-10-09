@@ -15,8 +15,8 @@ npm install @lti-tool/postgresql
 ## Quick Start
 
 ```typescript
-import { PostgresStorage } from '@lti-tool/postgresql';
 import { LTITool } from '@lti-tool/core';
+import { PostgresStorage } from '@lti-tool/postgresql';
 
 const storage = new PostgresStorage({
   connectionUrl: process.env.DATABASE_URL!,
