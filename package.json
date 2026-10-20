@@ -2,8 +2,7 @@
   "name": "lti-tool",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "examples/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
