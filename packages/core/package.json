@@ -30,6 +30,11 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "src",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

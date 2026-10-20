@@ -32,6 +32,12 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "src",
+    "drizzle",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

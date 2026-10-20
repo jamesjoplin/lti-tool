@@ -15,5 +15,6 @@
     "strictInputAccessModifiers": true,
     "typeCheckHostBindings": true,
     "strictTemplates": true
-  }
+  },
+  "exclude": ["examples"]
 }
