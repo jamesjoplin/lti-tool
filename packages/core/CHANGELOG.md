@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.3.2
+
+### Patch Changes
+
+- 38b5e96: Accept dynamic registration responses that omit `messages` from the LTI tool configuration. Moodle 5.3 leaves it out, which made registration fail with "Invalid request data" after the platform had already registered the tool.
+
 ## 1.3.1
 
 ### Patch Changes
