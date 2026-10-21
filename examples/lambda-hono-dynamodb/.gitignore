@@ -1,0 +1,17 @@
+# Bundle output and esbuild metafile
+dist/
+esbuild-meta.json
+
+# Deployment archive written by archive_file
+*.zip
+
+# Terraform / OpenTofu local state and provider cache.
+# .terraform.lock.hcl is committed on purpose.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Saved plans (tofu plan -out=tfplan)
+tfplan
+*.tfplan

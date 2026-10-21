@@ -35,7 +35,6 @@ The first **serverless-native** LTI 1.3 library for Node.js. Built for modern cl
 
 ### Future Releases
 
-- **Examples Repository** - Comprehensive example implementations
 - **Framework Support** - Express, Fastify, Astro, React, Angular
 
 ## Documentation
@@ -237,9 +236,13 @@ Production-ready security features
 
 > **Production Note**: The quick start example uses `crypto.subtle.generateKey()` for simplicity. In production, store the private key in a secrets manager (AWS Parameter Store SecureString, AWS Secrets Manager, HashiCorp Vault, etc.) and load it at startup. See the [Key Management guide](https://docs.lti-tool.dev/documents/Key_Management.html) for where the key should live and how to rotate or revoke it.
 
-## Examples (coming soon)
+## Examples
 
-Examples repository coming soon. Watch this repo for updates!
+Complete, deployable tools built from the published packages. Each one is a standalone project you can copy out of the repo.
+
+- [**AWS Lambda + Hono + DynamoDB**](./examples/lambda-hono-dynamodb) - One Terraform/OpenTofu `apply` deploys a tool you register in Moodle through dynamic registration. Secrets are generated ephemerally and never enter state.
+
+See the [Examples page](https://docs.lti-tool.dev/documents/Examples.html) on the docs site.
 
 ## Get Involved
 

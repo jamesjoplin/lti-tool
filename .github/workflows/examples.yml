@@ -1,0 +1,92 @@
+name: Examples
+
+on:
+  pull_request:
+    paths:
+      - 'examples/**'
+      - '.github/workflows/examples.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (${{ matrix.example }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [lambda-hono-dynamodb]
+    defaults:
+      run:
+        working-directory: examples/${{ matrix.example }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: examples/${{ matrix.example }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build bundle
+        run: npm run build
+
+  iac:
+    name: IaC (${{ matrix.example }}, ${{ matrix.tool }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [lambda-hono-dynamodb]
+        tool: [terraform, tofu]
+    defaults:
+      run:
+        working-directory: examples/${{ matrix.example }}/terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        if: matrix.tool == 'terraform'
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Setup OpenTofu
+        if: matrix.tool == 'tofu'
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Format check
+        run: ${{ matrix.tool }} fmt -check -recursive
+
+      # The committed lock file is OpenTofu's. Terraform prunes registry.opentofu.org
+      # entries and cannot use them, so it resolves its own providers instead.
+      - name: Remove OpenTofu lock file
+        if: matrix.tool == 'terraform'
+        run: rm -f .terraform.lock.hcl
+
+      - name: Init
+        run: ${{ matrix.tool }} init -backend=false -input=false
+
+      - name: Check lock file is current
+        if: matrix.tool == 'tofu'
+        run: git diff --exit-code .terraform.lock.hcl
+
+      - name: Validate
+        run: ${{ matrix.tool }} validate
