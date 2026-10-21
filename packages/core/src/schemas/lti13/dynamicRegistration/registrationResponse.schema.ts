@@ -10,7 +10,8 @@ import { LTIMessagesArraySchema } from './ltiMessages.schema.js';
  * @property target_link_uri - Optional default launch URL for the tool
  * @property custom_parameters - Optional custom parameters passed to the tool
  * @property claims - Array of JWT claims the tool requires (e.g., 'iss', 'sub', 'name', 'email')
- * @property messages - Array of LTI message types the tool supports
+ * @property messages - Optional array of LTI message types the tool supports. Platforms may omit it
+ *   (Moodle 5.3 does).
  * @property version - Optional tool version string
  * @property deployment_id - Optional deployment identifier assigned by the platform
  */
@@ -19,7 +20,7 @@ const LTIToolConfigurationResponseSchema = z.object({
   target_link_uri: z.url().optional(),
   custom_parameters: z.record(z.string(), z.string()).optional(),
   claims: z.array(z.string()),
-  messages: LTIMessagesArraySchema,
+  messages: LTIMessagesArraySchema.optional(),
   version: z.string().optional(),
   deployment_id: z.string().optional(),
 });

@@ -202,6 +202,65 @@ describe('DynamicRegistrationService', () => {
     expect(headers.get('Authorization')).toBe('Bearer reg-token-123');
   });
 
+  it('accepts a registration response without messages', async () => {
+    const storage = createStorageMock();
+    const logger = { debug: vi.fn(), error: vi.fn() } as any;
+    const service = new DynamicRegistrationService(
+      storage,
+      {
+        url: 'https://lti.local.test',
+        name: 'My LTI Tool',
+      },
+      logger,
+    );
+
+    (storage.getRegistrationSession as any).mockResolvedValue({
+      openIdConfiguration: createOpenIdConfiguration({
+        productFamilyCode: 'moodle',
+        baseUrl: 'https://moodle.example',
+      }),
+      registrationToken: 'reg-token-123',
+      expiresAt: Date.now() + 10_000,
+    });
+    (storage.addClient as any).mockResolvedValue('client-record-id');
+    (storage.addDeployment as any).mockResolvedValue('deployment-record-id');
+
+    // Moodle omits messages from the echoed tool configuration.
+    const { messages: _messages, ...toolConfiguration } =
+      createRegistrationResponse('moodle-client-id')[
+        'https://purl.imsglobal.org/spec/lti-tool-configuration'
+      ];
+    global.fetch = vi.fn(
+      () =>
+        new Response(
+          JSON.stringify({
+            ...createRegistrationResponse('moodle-client-id'),
+            'https://purl.imsglobal.org/spec/lti-tool-configuration': {
+              ...toolConfiguration,
+              deployment_id: '2',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    ) as any;
+
+    await service.completeDynamicRegistration({
+      sessionToken: 'session-token-123',
+      services: [],
+    });
+
+    expect(storage.addClient).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'moodle-client-id' }),
+    );
+    expect(storage.addDeployment).toHaveBeenCalledWith('client-record-id', {
+      deploymentId: '2',
+      name: 'Default Deployment via dynamic registration provided deployment id',
+    });
+  });
+
   it('keeps non-Canvas platforms on the generic message path', async () => {
     const storage = createStorageMock();
     const logger = { debug: vi.fn(), error: vi.fn() } as any;
