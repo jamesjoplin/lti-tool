@@ -69,6 +69,8 @@ app.get('/protected/content', (c) => {
 });
 ```
 
+For a complete tool with dynamic registration, DynamoDB storage, and Terraform/OpenTofu deployment, see the [full deployable example](https://github.com/lti-tool/lti-tool/tree/main/examples/lambda-hono-dynamodb).
+
 ## Features
 
 - **Automatic Routes** - `/login`, `/launch`, `/jwks` endpoints

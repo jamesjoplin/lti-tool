@@ -62,11 +62,28 @@ Everything below is a way of spelling that principle for a specific provider. No
 
 There is deliberately **no environment-variable row**. An environment variable is _how a key arrives_ at your process, not _where it rests_ - it is a delivery channel, and putting it in the same table as a secrets manager is a category error. If a secret manager hands your key to the process as an env var at boot, fine; the key still _rests_ in the manager. What you must not do is treat a plaintext env var in a dashboard or a `.env` file as the key's home.
 
+### State is a resting place too
+
+The table names where the key _should_ rest. If your infrastructure-as-code creates or delivers the key, copies can end up in other places, and each one needs its own protection:
+
+| Where a copy can end up | What protects it                                                                                                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The secret store        | A customer-managed key whose policy lets only the compute role decrypt (the table above).                                                                                                |
+| The IaC state file      | Encryption at rest and access control on the state backend. Any attribute that holds the value, such as a generated key or a function's env vars, is saved there in plaintext otherwise. |
+| Environment variables   | Encryption with a customer-managed key that only the compute role can decrypt. Otherwise anyone who can read the function's configuration can read them.                                 |
+| Logs                    | Never logging the key or the config object that holds it.                                                                                                                                |
+
+Protect every place a secret rests and the delivery channel stops mattering. Passing the key as an env var is a sound, hardened pattern when the state is encrypted and access-controlled **and** the env vars are encrypted with their own customer-managed key. It is not an anti-pattern. The weak setups are the ones that leave one of these places unprotected.
+
+If you can't encrypt your state, keep the secret out of it. Generate the key as an **ephemeral** value, write it to the secret store through a **write-only** argument, and have the compute layer **read it at runtime**. Terraform and OpenTofu 1.11+ support both, and neither the plan nor the state ever holds the value.
+
 ### A note on KMS asymmetric signing
 
 AWS KMS (and its GCP/Azure equivalents) can hold an asymmetric private key that **never leaves the HSM** - you sign by calling the KMS `Sign` API and publish the public half you fetch with `GetPublicKey`. It is a genuinely strong posture: the private key is unexportable.
 
 It is also **a different model than this library implements**, and there is no seam to plug it in. This library signs _in-process_ with a `CryptoKey` you hold in memory. KMS-held signing would put a network round-trip on the critical path of _every_ signature and subject your signing rate to KMS request quotas and throttling - real costs, on a hot path, that in-process signing does not pay. If that trade is right for your threat model, you would need your own signing path; publishing the public key here would only cover the JWKS half. This is called out so the choice is deliberate, not so it is discouraged.
+
+For a concrete AWS implementation of this section, see the [Lambda + Hono + DynamoDB example](https://github.com/lti-tool/lti-tool/tree/main/examples/lambda-hono-dynamodb). It generates the key ephemerally, stores it in Parameter Store through write-only arguments, and reads it at cold start, with a customer-managed key ready to enable.
 
 ## Rotating a key
 
