@@ -1,5 +1,11 @@
 # @lti-tool/core
 
+## 1.3.3
+
+### Patch Changes
+
+- 4202afe: docs: link to the examples page, fix build badge and Quick Start import
+
 ## 1.3.2
 
 ### Patch Changes
