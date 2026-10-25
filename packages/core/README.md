@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@lti-tool/core"><img alt="npm" src="https://img.shields.io/npm/dm/%40lti-tool%2Fcore?style=flat-square" /></a>
-  <a href="https://github.com/lti-tool/lti-tool/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/lti-tool/lti-tool/ci.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/lti-tool/lti-tool/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/lti-tool/lti-tool/release.yml?style=flat-square&branch=main" /></a>
 </p>
 <p align="center">Modern LTI 1.3 toolkit, built for TypeScript.</p>
 
