@@ -24,6 +24,7 @@ npm install @lti-tool/core
 
 ```typescript
 import { LTITool } from '@lti-tool/core';
+import { MemoryStorage } from '@lti-tool/memory';
 
 const ltiTool = new LTITool({
   stateSecret: new TextEncoder().encode('your-secret-key'),
