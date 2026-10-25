@@ -50,7 +50,7 @@ if the launch ID token contains multiple audiences.
 
 - [API Reference](https://docs.lti-tool.dev) - Complete API documentation
 - [Key Management](https://docs.lti-tool.dev/documents/Key_Management.html) - Where the signing key lives, and how to rotate or revoke it
-- [Examples](https://github.com/lti-tool/lti-tool-examples) - (Coming soon) Working examples
+- [Examples](https://docs.lti-tool.dev/documents/Examples.html) - Deployable example tools, starting with AWS Lambda + Hono + DynamoDB
 
 ## Security
 
